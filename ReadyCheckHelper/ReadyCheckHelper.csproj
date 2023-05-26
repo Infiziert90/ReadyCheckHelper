@@ -2,12 +2,11 @@
 	<PropertyGroup>
 		<TargetFramework>net7.0-windows</TargetFramework>
 		<Platforms>AnyCPU</Platforms>
-		<Version>1.0.4.2</Version>
-		<Authors>PunishedPineapple</Authors>
-		<Product />
-		<Copyright>Copyright © PunishedPineapple 2021-2023</Copyright>
-		<PackageProjectUrl>https://github.com/PunishedPineapple/ReadyCheckHelper</PackageProjectUrl>
-		<RepositoryUrl>https://github.com/PunishedPineapple/ReadyCheckHelper</RepositoryUrl>
+		<Version>1.0.4.3</Version>
+		<Authors>Infi, PunishedPineapple</Authors>
+		<Copyright>Copyright © Infi, PunishedPineapple 2021-2023</Copyright>
+		<PackageProjectUrl>https://github.com/Infiziert90/ReadyCheckHelper</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/Infiziert90/ReadyCheckHelper</RepositoryUrl>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -24,7 +23,18 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="DalamudPackager" Version="2.1.10" />
+		<Content Include="ReadyCheckHelper.json">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="..\docs\images\icon.png">
+			<Link>images/%(Filename)%(Extension)</Link>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="Resources\**" DestinationFolder="Resources\$(RecursiveDir)" CopyToOutputDirectory="Always" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="DalamudPackager" Version="2.1.11" />
 	</ItemGroup>
 
 	<PropertyGroup>
@@ -65,9 +75,5 @@
 			<Private>false</Private>
 			<HintPath>$(DalamudLibPath)CheapLoc.dll</HintPath>
 		</Reference>
-	</ItemGroup>
-
-	<ItemGroup>
-		<Content Include="Resources\**" DestinationFolder="Resources\$(RecursiveDir)" CopyToOutputDirectory="Always" />
 	</ItemGroup>
 </Project>

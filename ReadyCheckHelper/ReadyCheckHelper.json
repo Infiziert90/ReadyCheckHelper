@@ -1,14 +1,14 @@
 {
-  "Author": "PunishedPineapple",
+  "Author": "Infi, PunishedPineapple",
   "Name": "Ready Check Helper",
+  "InternalName": "ReadyCheckHelper",
   "Punchline": "Extends the game's built-in ready check.",
   "Description": "Displays the names of the players that were not ready in chat following the completion of a ready check, and optionally adds ready check status icons over the party and alliance lists.",
-  "RepoUrl": "https://github.com/PunishedPineapple/ReadyCheckHelper",
-  "IconUrl": "https://github.com/PunishedPineapple/ReadyCheckHelper/raw/main/docs/Images/icon.png",
+  "RepoUrl": "https://github.com/Infiziert90/ReadyCheckHelper",
+  "ApplicableVersion": "any",
   "ImageUrls": [
-    "https://github.com/PunishedPineapple/ReadyCheckHelper/raw/main/docs/Images/image1.png",
-    "https://github.com/PunishedPineapple/ReadyCheckHelper/raw/main/docs/Images/image2.png"
+    "https://github.com/Infiziert90/ReadyCheckHelper/raw/main/docs/Images/image1.png",
+    "https://github.com/Infiziert90/ReadyCheckHelper/raw/main/docs/Images/image2.png"
   ],
-  "Tags": [ "Ready Check", "Ready", "Check" ],
-  "DalamudApiLevel": 8
+  "Tags": [ "Ready Check", "Ready", "Check", "QoL" ]
 }

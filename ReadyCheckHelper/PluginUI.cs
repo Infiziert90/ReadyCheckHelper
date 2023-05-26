@@ -8,16 +8,10 @@ using System.Runtime.InteropServices;
 
 using ImGuiNET;
 using ImGuiScene;
-using Lumina.Excel;
 using Lumina.Excel.GeneratedSheets;
-using Dalamud.Plugin;
-using Dalamud.Data;
-using Dalamud.Game.Gui;
 using Dalamud.Interface;
-using Dalamud.Game;
 using Dalamud.Memory;
 using FFXIVClientStructs.FFXIV.Component.GUI;
-using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using CheapLoc;
 
 namespace ReadyCheckHelper
@@ -26,14 +20,14 @@ namespace ReadyCheckHelper
 	// to do any cleanup
 	public class PluginUI : IDisposable
 	{
+		private Plugin Plugin;
+		private Configuration Configuration;
+
 		//	Construction
-		public PluginUI( Plugin plugin, DalamudPluginInterface pluginInterface, Configuration configuration, DataManager dataManager, GameGui gameGui, SigScanner sigScanner )
+		public PluginUI( Plugin plugin, Configuration configuration)
 		{
-			mPlugin = plugin;
-			mPluginInterface = pluginInterface;
-			mConfiguration = configuration;
-			mDataManager = dataManager;
-			mGameGui = gameGui;
+			Plugin = plugin;
+			Configuration = configuration;
 		}
 
 		//	Destruction
@@ -49,15 +43,15 @@ namespace ReadyCheckHelper
 
 		public void Initialize()
 		{
-			ExcelSheet<Lumina.Excel.GeneratedSheets.ClassJob> classJobSheet = mDataManager.GetExcelSheet<Lumina.Excel.GeneratedSheets.ClassJob>();
-			foreach( ClassJob job in classJobSheet.ToList() )
+			var classJobSheet = Plugin.DataManager.GetExcelSheet<ClassJob>()!;
+			foreach( var job in classJobSheet.ToList() )
 			{
 				JobDict.Add( job.RowId, job.Abbreviation );
 			}
 
-			mReadyCheckIconTexture		??= mDataManager.GetImGuiTexture( "ui/uld/ReadyCheck_hr1.tex" ) ?? mDataManager.GetImGuiTexture( "ui/uld/ReadyCheck.tex" );
-			mUnknownStatusIconTexture	??= mDataManager.GetImGuiTextureIcon( 60072 );
-			mNotPresentIconTexture		??= mDataManager.GetImGuiTextureIcon( 61504 );
+			mReadyCheckIconTexture		??= Plugin.DataManager.GetImGuiTexture( "ui/uld/ReadyCheck_hr1.tex" ) ?? Plugin.DataManager.GetImGuiTexture( "ui/uld/ReadyCheck.tex" );
+			mUnknownStatusIconTexture	??= Plugin.DataManager.GetImGuiTextureIcon( 60072 );
+			mNotPresentIconTexture		??= Plugin.DataManager.GetImGuiTextureIcon( 61504 );
 		}
 
 		public void Draw()
@@ -73,7 +67,7 @@ namespace ReadyCheckHelper
 			DrawOnPartyAllianceLists();
 		}
 
-		protected void DrawSettingsWindow()
+		private void DrawSettingsWindow()
 		{
 			if( !SettingsWindowVisible )
 			{
@@ -83,23 +77,23 @@ namespace ReadyCheckHelper
 			if( ImGui.Begin( Loc.Localize( "Window Title: Config", "Ready Check Helper Settings" ) + "###Ready Check Helper Settings",
 				ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse ) )
 			{
-				ImGui.Checkbox( Loc.Localize( "Config Option: Print Names of Unready in Chat", "Show the names of those not ready in the chat window." ) + "###List unready names in chat.", ref mConfiguration.mShowReadyCheckResultsInChat );
+				ImGui.Checkbox( Loc.Localize( "Config Option: Print Names of Unready in Chat", "Show the names of those not ready in the chat window." ) + "###List unready names in chat.", ref Configuration.mShowReadyCheckResultsInChat );
 
-				if( mConfiguration.ShowReadyCheckResultsInChat )
+				if( Configuration.ShowReadyCheckResultsInChat )
 				{
 					ImGui.Spacing();
 
 					ImGui.Indent();
 					ImGui.Text( Loc.Localize( "Config Option: Max Names in Chat", "Maximum number of names to show in chat:" ) );
-					ImGui.SliderInt( "##MaxUnreadyNamesToShowInChat", ref mConfiguration.mMaxUnreadyToListInChat, 1, 48 );
+					ImGui.SliderInt( "##MaxUnreadyNamesToShowInChat", ref Configuration.mMaxUnreadyToListInChat, 1, 48 );
 					ImGui.Spacing();
 					ImGui.Text( Loc.Localize( "Config Option: Chat Message Channel", "Chat Log Channel:" ) );
 					ImGuiHelpMarker( String.Format( Loc.Localize( "Help: Chat Message Channel", "Sets the channel in which this chat message is shown.  Leave this set to the default value ({0}) unless it causes problems with your chat configuration.  This only affects the unready players message; all other messages from this plugin respect your choice of chat channel in Dalamud settings." ), LocalizationHelpers.GetTranslatedChatChannelName( Dalamud.Game.Text.XivChatType.SystemMessage ) ) );
-					if( ImGui.BeginCombo( "###NotReadyMessageChatChannelDropdown", LocalizationHelpers.GetTranslatedChatChannelName( mConfiguration.ChatChannelToUseForNotReadyMessage ) ) )
+					if( ImGui.BeginCombo( "###NotReadyMessageChatChannelDropdown", LocalizationHelpers.GetTranslatedChatChannelName( Configuration.ChatChannelToUseForNotReadyMessage ) ) )
 					{
 						foreach( Dalamud.Game.Text.XivChatType entry in Enum.GetValues( typeof( Dalamud.Game.Text.XivChatType ) ) )
 						{
-							if( ImGui.Selectable( LocalizationHelpers.GetTranslatedChatChannelName( entry ) ) ) mConfiguration.ChatChannelToUseForNotReadyMessage = entry;
+							if( ImGui.Selectable( LocalizationHelpers.GetTranslatedChatChannelName( entry ) ) ) Configuration.ChatChannelToUseForNotReadyMessage = entry;
 						}
 						ImGui.EndCombo();
 					}
@@ -112,28 +106,28 @@ namespace ReadyCheckHelper
 					ImGui.Spacing();
 				}
 
-				ImGui.Checkbox( Loc.Localize( "Config Option: Draw on Party Alliance Lists", "Draw ready check on party/alliance lists." ) + "###Draw ready check on party/alliance lists.", ref mConfiguration.mShowReadyCheckOnPartyAllianceList );
+				ImGui.Checkbox( Loc.Localize( "Config Option: Draw on Party Alliance Lists", "Draw ready check on party/alliance lists." ) + "###Draw ready check on party/alliance lists.", ref Configuration.mShowReadyCheckOnPartyAllianceList );
 
-				if( mConfiguration.ShowReadyCheckOnPartyAllianceList )
+				if( Configuration.ShowReadyCheckOnPartyAllianceList )
 				{
 					ImGui.Spacing();
 
 					ImGui.Indent();
 					ImGui.Text( Loc.Localize( "Config Option: Clear Party Alliance List Settings", "Clear ready check from party/alliance lists:" ) );
-					ImGui.Checkbox( Loc.Localize( "Config Option: Clear Party Alliance List upon Entering Combat", "Upon entering combat." ) + "###Upon entering combat.", ref mConfiguration.mClearReadyCheckOverlayInCombat );
-					ImGui.Checkbox( Loc.Localize( "Config Option: Clear Party Alliance List upon Entering Instance", "Upon entering instance." ) + "###Upon entering instance.", ref mConfiguration.mClearReadyCheckOverlayEnteringInstance );
-					ImGui.Checkbox( Loc.Localize( "Config Option: Clear Party Alliance List upon Enteringing Combat in Instance", "Upon entering combat while in instance." ) + "###Upon entering combat while in instance.", ref mConfiguration.mClearReadyCheckOverlayInCombatInInstancedCombat );
-					ImGui.Checkbox( Loc.Localize( "Config Option: Clear Party Alliance List after X Seconds:", "After a certain number of seconds:" ) + "###After X seconds.", ref mConfiguration.mClearReadyCheckOverlayAfterTime );
+					ImGui.Checkbox( Loc.Localize( "Config Option: Clear Party Alliance List upon Entering Combat", "Upon entering combat." ) + "###Upon entering combat.", ref Configuration.mClearReadyCheckOverlayInCombat );
+					ImGui.Checkbox( Loc.Localize( "Config Option: Clear Party Alliance List upon Entering Instance", "Upon entering instance." ) + "###Upon entering instance.", ref Configuration.mClearReadyCheckOverlayEnteringInstance );
+					ImGui.Checkbox( Loc.Localize( "Config Option: Clear Party Alliance List upon Enteringing Combat in Instance", "Upon entering combat while in instance." ) + "###Upon entering combat while in instance.", ref Configuration.mClearReadyCheckOverlayInCombatInInstancedCombat );
+					ImGui.Checkbox( Loc.Localize( "Config Option: Clear Party Alliance List after X Seconds:", "After a certain number of seconds:" ) + "###After X seconds.", ref Configuration.mClearReadyCheckOverlayAfterTime );
 					ImGuiHelpMarker( Loc.Localize( "Help: Clear Party Alliance List after X Seconds", "Changes to this setting will not take effect until the next ready check concludes." ) );
-					ImGui.DragInt( "###TimeUntilClearOverlaySlider", ref mConfiguration.mTimeUntilClearReadyCheckOverlay_Sec, 1.0f, 30, 900, "%d", ImGuiSliderFlags.AlwaysClamp );
+					ImGui.DragInt( "###TimeUntilClearOverlaySlider", ref Configuration.mTimeUntilClearReadyCheckOverlay_Sec, 1.0f, 30, 900, "%d", ImGuiSliderFlags.AlwaysClamp );
 					ImGui.Spacing();
 					ImGui.Text( Loc.Localize( "Config Section: Icon Size/Offset", "Party and Alliance List Icon Size/Offset:" ) );
-					ImGui.DragFloat2( Loc.Localize( "Config Option: Party List Icon Offset", "Party List Icon Offset" ) + "###PartyListIconOffset", ref mConfiguration.mPartyListIconOffset, 1f, -100f, 100f );
-					ImGui.DragFloat( Loc.Localize( "Config Option: Party List Icon Scale", "Party List Icon Scale" ) + "###PartyListIconScale", ref mConfiguration.mPartyListIconScale, 0.1f, 0.3f, 5.0f, "%f", ImGuiSliderFlags.AlwaysClamp );
-					ImGui.DragFloat2( Loc.Localize( "Config Option: Alliance List Icon Offset", "Alliance List Icon Offset" ) + "###AllianceListIconOffset", ref mConfiguration.mAllianceListIconOffset, 1f, -100f, 100f );
-					ImGui.DragFloat( Loc.Localize( "Config Option: Alliance List Icon Scale", "Alliance List Icon Scale" ) + "###AllianceListIconScale", ref mConfiguration.mAllianceListIconScale, 0.1f, 0.3f, 5.0f, "%f", ImGuiSliderFlags.AlwaysClamp );
-					//ImGui.DragFloat2( Loc.Localize( "Config Option: Cross-World Alliance List Icon Offset", "Cross-World Alliance List Icon Offset" ) + "###CrossWorldAllianceListIconOffset", ref mConfiguration.mCrossWorldAllianceListIconOffset, 1f, -100f, 100f );
-					//ImGui.DragFloat( Loc.Localize( "Config Option: Cross-World Alliance List Icon Scale", "Cross-World Alliance List Icon Scale" ) + "###CrossWorldAllianceListIconScale", ref mConfiguration.mCrossWorldAllianceListIconScale, 0.1f, 0.3f, 5.0f, "%d", ImGuiSliderFlags.AlwaysClamp );
+					ImGui.DragFloat2( Loc.Localize( "Config Option: Party List Icon Offset", "Party List Icon Offset" ) + "###PartyListIconOffset", ref Configuration.mPartyListIconOffset, 1f, -100f, 100f );
+					ImGui.DragFloat( Loc.Localize( "Config Option: Party List Icon Scale", "Party List Icon Scale" ) + "###PartyListIconScale", ref Configuration.mPartyListIconScale, 0.1f, 0.3f, 5.0f, "%f", ImGuiSliderFlags.AlwaysClamp );
+					ImGui.DragFloat2( Loc.Localize( "Config Option: Alliance List Icon Offset", "Alliance List Icon Offset" ) + "###AllianceListIconOffset", ref Configuration.mAllianceListIconOffset, 1f, -100f, 100f );
+					ImGui.DragFloat( Loc.Localize( "Config Option: Alliance List Icon Scale", "Alliance List Icon Scale" ) + "###AllianceListIconScale", ref Configuration.mAllianceListIconScale, 0.1f, 0.3f, 5.0f, "%f", ImGuiSliderFlags.AlwaysClamp );
+					//ImGui.DragFloat2( Loc.Localize( "Config Option: Cross-World Alliance List Icon Offset", "Cross-World Alliance List Icon Offset" ) + "###CrossWorldAllianceListIconOffset", ref Configuration.mCrossWorldAllianceListIconOffset, 1f, -100f, 100f );
+					//ImGui.DragFloat( Loc.Localize( "Config Option: Cross-World Alliance List Icon Scale", "Cross-World Alliance List Icon Scale" ) + "###CrossWorldAllianceListIconScale", ref Configuration.mCrossWorldAllianceListIconScale, 0.1f, 0.3f, 5.0f, "%d", ImGuiSliderFlags.AlwaysClamp );
 					ImGui.Unindent();
 				}
 
@@ -145,12 +139,12 @@ namespace ReadyCheckHelper
 
 				/*if( ImGui.Button( Loc.Localize( "Button: Save", "Save" ) + "###Save Button" ) )
 				{
-					mConfiguration.Save();
+					Configuration.Save();
 				}
 				ImGui.SameLine();*/
 				if( ImGui.Button( Loc.Localize( "Button: Save and Close", "Save and Close" ) + "###Save and Close" ) )
 				{
-					mConfiguration.Save();
+					Configuration.Save();
 					SettingsWindowVisible = false;
 				}
 			}
@@ -158,7 +152,7 @@ namespace ReadyCheckHelper
 			ImGui.End();
 		}
 
-		protected void DrawReadyCheckResultsWindow()
+		private void DrawReadyCheckResultsWindow()
 		{
 			if( !ReadyCheckResultsWindowVisible )
 			{
@@ -169,7 +163,7 @@ namespace ReadyCheckHelper
 			if( ImGui.Begin( Loc.Localize( "Window Title: Ready Check Results", "Latest Ready Check Results" ) + "###Latest Ready Check Results", ref mReadyCheckResultsWindowVisible,
 				ImGuiWindowFlags.AlwaysAutoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse ) )
 			{
-				var list = mPlugin.GetProcessedReadyCheckData();
+				var list = Plugin.GetProcessedReadyCheckData();
 				if( list != null )
 				{
 					//	We have to sort and reorganize this yet again because of how ImGui tables work ;_;
@@ -183,7 +177,7 @@ namespace ReadyCheckHelper
 						}
 						tableList[player.GroupIndex].Add( player );
 					}
-					
+
 					if( ImGui.BeginTable( "###LatestReadyCheckResultsTable", tableList.Count ) )
 					{
 						for( int i = 0; i < 8; ++i )
@@ -284,7 +278,7 @@ namespace ReadyCheckHelper
 							{
 								ImGui.Text( $"Number of Party Members (Group {i}): {FFXIVClientStructs.FFXIV.Client.UI.Info.InfoProxyCrossRealm.GetGroupMemberCount( i )}" );
 							}
-							ImGui.Text( $"Ready check is active: {mPlugin.ReadyCheckActive}" );
+							ImGui.Text( $"Ready check is active: {Plugin.ReadyCheckActive}" );
 							ImGui.Spacing();
 							ImGui.Spacing();
 							ImGui.Spacing();
@@ -297,14 +291,14 @@ namespace ReadyCheckHelper
 							{
 								if( ImGui.Button( "Test Chat Message" ) )
 								{
-									mPlugin.ListUnreadyPlayersInChat( new List<string>( LocalizationHelpers.TestNames.Take( mDEBUG_NumNamesToTestChatMessage ) ) );
+									Plugin.ListUnreadyPlayersInChat( new List<string>( LocalizationHelpers.TestNames.Take( mDEBUG_NumNamesToTestChatMessage ) ) );
 								}
 								ImGui.SliderInt( "Number of Test Names", ref mDEBUG_NumNamesToTestChatMessage, 1, LocalizationHelpers.TestNames.Length );
 							}
 							if( ImGui.Button( "Export Localizable Strings" ) )
 							{
 								string pwd = Directory.GetCurrentDirectory();
-								Directory.SetCurrentDirectory( mPluginInterface.AssemblyLocation.DirectoryName );
+								Directory.SetCurrentDirectory( Plugin.PluginInterface.AssemblyLocation.DirectoryName );
 								Loc.ExportLocalizable();
 								Directory.SetCurrentDirectory( pwd );
 							}
@@ -478,7 +472,7 @@ namespace ReadyCheckHelper
 				ImGui.PushFont( UiBuilder.MonoFont );
 				try
 				{
-					var list = mPlugin.GetProcessedReadyCheckData();
+					var list = Plugin.GetProcessedReadyCheckData();
 					if( list != null )
 					{
 						foreach( var player in list )
@@ -504,7 +498,7 @@ namespace ReadyCheckHelper
 
 		unsafe protected void DrawOnPartyAllianceLists()
 		{
-			if( ( mDEBUG_DrawPlaceholderData || ( mConfiguration.ShowReadyCheckOnPartyAllianceList && ReadyCheckValid ) ) && mGameGui != null )
+			if( ( mDEBUG_DrawPlaceholderData || ( Configuration.ShowReadyCheckOnPartyAllianceList && ReadyCheckValid ) ) && Plugin.GameGui != null )
 			{
 				const ImGuiWindowFlags flags =	ImGuiWindowFlags.NoDecoration |
 												ImGuiWindowFlags.NoSavedSettings |
@@ -519,10 +513,10 @@ namespace ReadyCheckHelper
 				ImGui.SetNextWindowSize( ImGui.GetMainViewport().Size );
 				if( ImGui.Begin( "##ReadyCheckOverlayWindow", flags ) )
 				{
-					var pPartyList = (AtkUnitBase*)mGameGui.GetAddonByName( "_PartyList", 1 );
-					var pAlliance1List = (AtkUnitBase*)mGameGui.GetAddonByName( "_AllianceList1", 1 );
-					var pAlliance2List = (AtkUnitBase*)mGameGui.GetAddonByName( "_AllianceList2", 1 );
-					var pCrossWorldAllianceList = (AtkUnitBase*)mGameGui.GetAddonByName( "Alliance48", 1 );
+					var pPartyList = (AtkUnitBase*) Plugin.GameGui.GetAddonByName( "_PartyList", 1 );
+					var pAlliance1List = (AtkUnitBase*) Plugin.GameGui.GetAddonByName( "_AllianceList1", 1 );
+					var pAlliance2List = (AtkUnitBase*) Plugin.GameGui.GetAddonByName( "_AllianceList2", 1 );
+					var pCrossWorldAllianceList = (AtkUnitBase*) Plugin.GameGui.GetAddonByName( "Alliance48", 1 );
 
 					if( mDEBUG_DrawPlaceholderData )
 					{
@@ -533,6 +527,7 @@ namespace ReadyCheckHelper
 								DrawOnPartyList( i, MemoryHandler.ReadyCheckStateEnum.Ready, pPartyList, ImGui.GetWindowDrawList() );
 							}
 						}
+
 						if( (IntPtr)pAlliance1List != IntPtr.Zero && pAlliance1List->IsVisible )
 						{
 							for( int i = 0; i < 8; ++i )
@@ -540,6 +535,7 @@ namespace ReadyCheckHelper
 								DrawOnAllianceList( i, MemoryHandler.ReadyCheckStateEnum.Ready, pAlliance1List, ImGui.GetWindowDrawList() );
 							}
 						}
+
 						if( (IntPtr)pAlliance2List != IntPtr.Zero && pAlliance2List->IsVisible )
 						{
 							for( int i = 0; i < 8; ++i )
@@ -547,6 +543,7 @@ namespace ReadyCheckHelper
 								DrawOnAllianceList( i, MemoryHandler.ReadyCheckStateEnum.Ready, pAlliance2List, ImGui.GetWindowDrawList() );
 							}
 						}
+
 						if( (IntPtr)pCrossWorldAllianceList != IntPtr.Zero && pCrossWorldAllianceList->IsVisible )
 						{
 							for( int j = 1; j < 6; ++j )
@@ -560,7 +557,7 @@ namespace ReadyCheckHelper
 					}
 					else
 					{
-						var data = mPlugin.GetProcessedReadyCheckData();
+						var data = Plugin.GetProcessedReadyCheckData();
 						if( data != null )
 						{
 							foreach( var result in data )
@@ -598,6 +595,7 @@ namespace ReadyCheckHelper
 			if( listIndex < 0 || listIndex > 7 ) return;
 			int partyMemberNodeIndex = 22 - listIndex;
 			int iconNodeIndex = 4;
+			var partyAlign = pPartyList->UldManager.NodeList[3]->Y;
 
 			var pPartyMemberNode = pPartyList->UldManager.NodeListSize > partyMemberNodeIndex ? (AtkComponentNode*) pPartyList->UldManager.NodeList[partyMemberNodeIndex] : (AtkComponentNode*) IntPtr.Zero;
 			if( (IntPtr)pPartyMemberNode != IntPtr.Zero )
@@ -606,10 +604,10 @@ namespace ReadyCheckHelper
 				if( (IntPtr)pIconNode != IntPtr.Zero )
 				{
 					//	Note: sub-nodes don't scale, so we have to account for the addon's scale.
-					Vector2 iconOffset = ( new Vector2( -7, -5 ) + mConfiguration.PartyListIconOffset ) * pPartyList->Scale;
-					Vector2 iconSize = new Vector2( pIconNode->Width / 3, pIconNode->Height / 3 ) * mConfiguration.PartyListIconScale * pPartyList->Scale;
+					Vector2 iconOffset = ( new Vector2( -7, -5 ) + Configuration.PartyListIconOffset ) * pPartyList->Scale;
+					Vector2 iconSize = new Vector2( pIconNode->Width / 3, pIconNode->Height / 3 ) * Configuration.PartyListIconScale * pPartyList->Scale;
 					Vector2 iconPos = new Vector2(	pPartyList->X + pPartyMemberNode->AtkResNode.X * pPartyList->Scale + pIconNode->X * pPartyList->Scale + pIconNode->Width * pPartyList->Scale / 2,
-													pPartyList->Y + pPartyMemberNode->AtkResNode.Y * pPartyList->Scale + pIconNode->Y * pPartyList->Scale + pIconNode->Height * pPartyList->Scale / 2 );
+													pPartyList->Y + partyAlign + pPartyMemberNode->AtkResNode.Y * pPartyList->Scale + pIconNode->Y * pPartyList->Scale + pIconNode->Height * pPartyList->Scale / 2 );
 					iconPos += iconOffset;
 
 					if( readyCheckState == MemoryHandler.ReadyCheckStateEnum.NotReady )
@@ -617,7 +615,7 @@ namespace ReadyCheckHelper
 						drawList.AddImage( mReadyCheckIconTexture.ImGuiHandle, iconPos, iconPos + iconSize, new Vector2( 0.5f, 0.0f ), new Vector2( 1.0f ) );
 					}
 					else if( readyCheckState == MemoryHandler.ReadyCheckStateEnum.Ready )
-					{ 
+					{
 						drawList.AddImage( mReadyCheckIconTexture.ImGuiHandle, iconPos, iconPos + iconSize, new Vector2( 0.0f, 0.0f ), new Vector2( 0.5f, 1.0f ) );
 					}
 					else if( readyCheckState == MemoryHandler.ReadyCheckStateEnum.CrossWorldMemberNotPresent )
@@ -640,8 +638,8 @@ namespace ReadyCheckHelper
 				var pIconNode = pAllianceMemberNode->Component->UldManager.NodeListSize > iconNodeIndex ? pAllianceMemberNode->Component->UldManager.NodeList[iconNodeIndex] : (AtkResNode*) IntPtr.Zero;
 				if( (IntPtr)pIconNode != IntPtr.Zero )
 				{
-					Vector2 iconOffset = ( new Vector2( 0, 0 ) + mConfiguration.AllianceListIconOffset ) * pAllianceList->Scale;
-					Vector2 iconSize = new Vector2( pIconNode->Width / 3, pIconNode->Height / 3 ) * mConfiguration.AllianceListIconScale * pAllianceList->Scale;
+					Vector2 iconOffset = ( new Vector2( 0, 0 ) + Configuration.AllianceListIconOffset ) * pAllianceList->Scale;
+					Vector2 iconSize = new Vector2( pIconNode->Width / 3, pIconNode->Height / 3 ) * Configuration.AllianceListIconScale * pAllianceList->Scale;
 					Vector2 iconPos = new Vector2(	pAllianceList->X + pAllianceMemberNode->AtkResNode.X * pAllianceList->Scale + pIconNode->X * pAllianceList->Scale + pIconNode->Width * pAllianceList->Scale / 2,
 													pAllianceList->Y + pAllianceMemberNode->AtkResNode.Y * pAllianceList->Scale + pIconNode->Y * pAllianceList->Scale + pIconNode->Height * pAllianceList->Scale / 2 );
 					iconPos += iconOffset;
@@ -680,8 +678,8 @@ namespace ReadyCheckHelper
 					var pIconNode = pPartyMemberNode->Component->UldManager.NodeListSize > iconNodeIndex ? pPartyMemberNode->Component->UldManager.NodeList[iconNodeIndex] : (AtkResNode*) IntPtr.Zero;
 					if( (IntPtr)pIconNode != IntPtr.Zero )
 					{
-						Vector2 iconOffset = ( new Vector2( 0, 0 ) + mConfiguration.CrossWorldAllianceListIconOffset ) * pAllianceList->Scale;
-						Vector2 iconSize = new Vector2( pIconNode->Width / 2, pIconNode->Height / 2 ) * mConfiguration.CrossWorldAllianceListIconScale * pAllianceList->Scale;
+						Vector2 iconOffset = ( new Vector2( 0, 0 ) + Configuration.CrossWorldAllianceListIconOffset ) * pAllianceList->Scale;
+						Vector2 iconSize = new Vector2( pIconNode->Width / 2, pIconNode->Height / 2 ) * Configuration.CrossWorldAllianceListIconScale * pAllianceList->Scale;
 						Vector2 iconPos = new Vector2(	pAllianceList->X + pAllianceNode->AtkResNode.X * pAllianceList->Scale + pPartyMemberNode->AtkResNode.X * pAllianceList->Scale + pIconNode->X * pAllianceList->Scale + pIconNode->Width * pAllianceList->Scale / 2,
 														pAllianceList->Y + pAllianceNode->AtkResNode.Y * pAllianceList->Scale + pPartyMemberNode->AtkResNode.Y * pAllianceList->Scale + pIconNode->Y * pAllianceList->Scale + pIconNode->Height * pAllianceList->Scale / 2 );
 						iconPos += iconOffset;
@@ -726,12 +724,6 @@ namespace ReadyCheckHelper
 		{
 			ReadyCheckValid = false;
 		}
-
-		protected Plugin mPlugin;
-		protected DalamudPluginInterface mPluginInterface;
-		protected Configuration mConfiguration;
-		protected DataManager mDataManager;
-		protected GameGui mGameGui;
 
 		protected Dictionary<uint, string> JobDict { get; set; } = new Dictionary<uint, string>();
 

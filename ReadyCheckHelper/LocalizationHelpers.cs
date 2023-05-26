@@ -1,10 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-using Dalamud;
 using Dalamud.Data;
 using Dalamud.Game.Text;
 
@@ -208,9 +205,9 @@ namespace ReadyCheckHelper
 			return ConstructNotReadyString_en( notReadyList, maxUnreadyToList );
 		}
 
-		internal static void Init( DataManager dataManager )
+		internal static void Init( DataManager DataManager )
 		{
-			mLogFilterSheet = dataManager.GetExcelSheet<LogFilter>();
+			mLogFilterSheet = DataManager.GetExcelSheet<LogFilter>();
 		}
 
 		internal static void Uninit()

@@ -2,3 +2,6 @@
 /packages
 /ReadyCheckHelper/obj
 /ReadyCheckHelper/bin
+.idea/
+.git/
+*.user

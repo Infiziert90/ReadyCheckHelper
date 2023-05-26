@@ -1,6 +1,5 @@
 ﻿using Dalamud.Configuration;
 using Dalamud.Plugin;
-using Newtonsoft.Json;
 using System;
 using System.Numerics;
 
@@ -132,16 +131,16 @@ namespace ReadyCheckHelper
 		//  Plugin framework and related convenience functions below.
 		public void Initialize( DalamudPluginInterface pluginInterface )
 		{
-			mPluginInterface = pluginInterface;
+			PluginInterface = pluginInterface;
 		}
 
 		public void Save()
 		{
-			mPluginInterface.SavePluginConfig( this );
+			PluginInterface.SavePluginConfig( this );
 		}
 
 		[NonSerialized]
-		protected DalamudPluginInterface mPluginInterface;
+		protected DalamudPluginInterface PluginInterface;
 
 		public int Version { get; set; } = 0;
 	}
