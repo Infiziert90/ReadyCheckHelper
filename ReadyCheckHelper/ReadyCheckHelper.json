@@ -7,8 +7,8 @@
   "RepoUrl": "https://github.com/Infiziert90/ReadyCheckHelper",
   "ApplicableVersion": "any",
   "ImageUrls": [
-    "https://github.com/Infiziert90/ReadyCheckHelper/raw/main/docs/Images/image1.png",
-    "https://github.com/Infiziert90/ReadyCheckHelper/raw/main/docs/Images/image2.png"
+    "https://github.com/Infiziert90/ReadyCheckHelper/raw/Legacy_GUI/ReadyCheckHelper/images/image1.png",
+    "https://github.com/Infiziert90/ReadyCheckHelper/raw/Legacy_GUI/ReadyCheckHelper/images/image2.png"
   ],
   "Tags": [ "Ready Check", "Ready", "Check", "QoL" ]
 }

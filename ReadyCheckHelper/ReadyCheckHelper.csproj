@@ -26,8 +26,7 @@
 		<Content Include="ReadyCheckHelper.json">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
-		<Content Include="..\docs\images\icon.png">
-			<Link>images/%(Filename)%(Extension)</Link>
+		<Content Include="images\icon.png">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 		<Content Include="Resources\**" DestinationFolder="Resources\$(RecursiveDir)" CopyToOutputDirectory="Always" />
@@ -75,5 +74,9 @@
 			<Private>false</Private>
 			<HintPath>$(DalamudLibPath)CheapLoc.dll</HintPath>
 		</Reference>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Folder Include="images\" />
 	</ItemGroup>
 </Project>
