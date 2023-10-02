@@ -7,12 +7,13 @@ using System.IO;
 using System.Runtime.InteropServices;
 
 using ImGuiNET;
-using ImGuiScene;
 using Lumina.Excel.GeneratedSheets;
 using Dalamud.Interface;
 using Dalamud.Memory;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using CheapLoc;
+using Dalamud.Interface.Internal;
+using Dalamud.Interface.Utility;
 
 namespace ReadyCheckHelper
 {
@@ -31,15 +32,7 @@ namespace ReadyCheckHelper
 		}
 
 		//	Destruction
-		public void Dispose()
-		{
-			mReadyCheckIconTexture?.Dispose();
-			mUnknownStatusIconTexture?.Dispose();
-			mNotPresentIconTexture?.Dispose();
-			mReadyCheckIconTexture = null;
-			mUnknownStatusIconTexture = null;
-			mNotPresentIconTexture = null;
-		}
+		public void Dispose() { }
 
 		public void Initialize()
 		{
@@ -49,9 +42,9 @@ namespace ReadyCheckHelper
 				JobDict.Add( job.RowId, job.Abbreviation );
 			}
 
-			mReadyCheckIconTexture		??= Plugin.DataManager.GetImGuiTexture( "ui/uld/ReadyCheck_hr1.tex" ) ?? Plugin.DataManager.GetImGuiTexture( "ui/uld/ReadyCheck.tex" );
-			mUnknownStatusIconTexture	??= Plugin.DataManager.GetImGuiTextureIcon( 60072 );
-			mNotPresentIconTexture		??= Plugin.DataManager.GetImGuiTextureIcon( 61504 );
+			mReadyCheckIconTexture		??= Plugin.Texture.GetTextureFromGame( "ui/uld/ReadyCheck_hr1.tex" ) ?? Plugin.Texture.GetTextureFromGame( "ui/uld/ReadyCheck.tex" );
+			mUnknownStatusIconTexture	??= Plugin.Texture.GetIcon( 60072 );
+			mNotPresentIconTexture		??= Plugin.Texture.GetIcon( 61504 );
 		}
 
 		public void Draw()
@@ -727,9 +720,9 @@ namespace ReadyCheckHelper
 
 		protected Dictionary<uint, string> JobDict { get; set; } = new Dictionary<uint, string>();
 
-		protected TextureWrap mReadyCheckIconTexture = null;
-		protected TextureWrap mUnknownStatusIconTexture = null;
-		protected TextureWrap mNotPresentIconTexture = null;
+		protected IDalamudTextureWrap mReadyCheckIconTexture = null;
+		protected IDalamudTextureWrap mUnknownStatusIconTexture = null;
+		protected IDalamudTextureWrap mNotPresentIconTexture = null;
 
 		protected bool ReadyCheckValid { get; set; }
 		protected bool mDEBUG_DrawPlaceholderData = false;

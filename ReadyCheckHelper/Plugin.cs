@@ -5,40 +5,38 @@ using System.Threading;
 using System.Threading.Tasks;
 using CheapLoc;
 using Dalamud;
-using Dalamud.Data;
 using Dalamud.Game;
-using Dalamud.Game.ClientState;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.Command;
-using Dalamud.Game.Gui;
 using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
 using Dalamud.IoC;
-using Dalamud.Logging;
 using Dalamud.Memory;
 using Dalamud.Plugin;
+using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game.Group;
 using FFXIVClientStructs.FFXIV.Client.UI.Info;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using Lumina.Excel.GeneratedSheets;
-using Condition = Dalamud.Game.ClientState.Conditions.Condition;
 
 namespace ReadyCheckHelper
 {
 	public sealed class Plugin : IDalamudPlugin
 	{
-		[PluginService] public static ChatGui Chat { get; private set; } = null!;
-		[PluginService] public static Condition Condition { get; private set; } = null!;
-		[PluginService] public static Framework Framework { get; private set; } = null!;
-		[PluginService] public static ClientState ClientState { get; private set; } = null!;
+		[PluginService] public static IChatGui Chat { get; private set; } = null!;
+		[PluginService] public static ICondition Condition { get; private set; } = null!;
+		[PluginService] public static IFramework Framework { get; private set; } = null!;
+		[PluginService] public static IClientState ClientState { get; private set; } = null!;
 		[PluginService] public static DalamudPluginInterface PluginInterface { get; private set; } = null!;
-		[PluginService] public static GameGui GameGui { get; private set; } = null!;
-		[PluginService] public static CommandManager CommandManager { get; private set; } = null!;
-		[PluginService] public static DataManager DataManager { get; private set; } = null!;
-		[PluginService] public static SigScanner SigScanner { get; private set; } = null!;
+		[PluginService] public static IGameGui GameGui { get; private set; } = null!;
+		[PluginService] public static ICommandManager CommandManager { get; private set; } = null!;
+		[PluginService] public static IDataManager DataManager { get; private set; } = null!;
+		[PluginService] public static ITextureProvider Texture { get; private set; } = null!;
+		[PluginService] public static ISigScanner SigScanner { get; private set; } = null!;
+		[PluginService] public static IGameInteropProvider Hook { get; private set; } = null!;
+		[PluginService] public static IPluginLog Log { get; private set; } = null!;
 
-		public string Name => "Ready Check Helper";
 		private const string TextCommandName = "/pready";
 		private readonly DalamudLinkPayload OpenReadyCheckWindowLink;
 
@@ -57,7 +55,7 @@ namespace ReadyCheckHelper
 			//	Configuration
 			Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
 			Configuration.Initialize( PluginInterface );
-			MemoryHandler.Init( SigScanner );
+			MemoryHandler.Init();
 
 			//	Localization and Command Initialization
 			OnLanguageChanged( PluginInterface.UiLanguage );
@@ -65,7 +63,7 @@ namespace ReadyCheckHelper
 			{
 				ShowBestAvailableReadyCheckWindow();
 			} );
-			LocalizationHelpers.Init( DataManager );
+			LocalizationHelpers.Init();
 
 			//	UI Initialization
 			PluginUi = new PluginUI(this, Configuration);
@@ -112,7 +110,7 @@ namespace ReadyCheckHelper
 		{
 			var allowedLang = new List<string>{ "es", "fr", "ja" };
 
-			PluginLog.Information( "Trying to set up Loc for culture {0}", langCode );
+			Log.Information( "Trying to set up Loc for culture {0}", langCode );
 
 			if( allowedLang.Contains( langCode ) )
 			{
@@ -219,7 +217,7 @@ namespace ReadyCheckHelper
 			PluginUi.SettingsWindowVisible = true;
 		}
 
-		private void OnGameFrameworkUpdate( Framework framework )
+		private void OnGameFrameworkUpdate( IFramework framework )
 		{
 			if( ClientState.IsLoggedIn && ReadyCheckActive )
 				ProcessReadyCheckResults();
@@ -396,7 +394,7 @@ namespace ReadyCheckHelper
 				}
 				catch( Exception e )
 				{
-					PluginLog.LogDebug( $"Exception caught in \"ProcessReadyCheckResults_Regular()\": {e}." );
+					Log.Debug( $"Exception caught in \"ProcessReadyCheckResults_Regular()\": {e}." );
 				}
 			}
 		}
@@ -428,7 +426,7 @@ namespace ReadyCheckHelper
 				}
 				catch( Exception e )
 				{
-					PluginLog.LogDebug( $"Exception caught in \"ProcessReadyCheckResults_CrossWorld()\": {e}." );
+					Log.Debug( $"Exception caught in \"ProcessReadyCheckResults_CrossWorld()\": {e}." );
 				}
 			}
 		}
@@ -479,7 +477,7 @@ namespace ReadyCheckHelper
 							RawPayload.LinkTerminator
 						} )
 					};
-					Chat.PrintChat( chatEntry );
+					Chat.Print( chatEntry );
 				} );
 			}
 		}
@@ -516,12 +514,12 @@ namespace ReadyCheckHelper
 			}
 		}
 
-		private void OnTerritoryChanged( object sender, UInt16 ID )
+		private void OnTerritoryChanged(UInt16 ID )
 		{
 			if( Configuration.ClearReadyCheckOverlayEnteringInstance && mInstancedTerritories.Contains( ID ) ) PluginUi.InvalidateReadyCheck();
 		}
 
-		private void OnLogout( object sender, EventArgs e )
+		private void OnLogout()
 		{
 			ReadyCheckActive = false;
 			mTimedOverlayCancellationSource?.Cancel();

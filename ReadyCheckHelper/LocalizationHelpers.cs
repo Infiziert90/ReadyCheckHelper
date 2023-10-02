@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-
-using Dalamud.Data;
 using Dalamud.Game.Text;
 
 using Lumina.Excel;
@@ -205,9 +203,9 @@ namespace ReadyCheckHelper
 			return ConstructNotReadyString_en( notReadyList, maxUnreadyToList );
 		}
 
-		internal static void Init( DataManager DataManager )
+		internal static void Init()
 		{
-			mLogFilterSheet = DataManager.GetExcelSheet<LogFilter>();
+			mLogFilterSheet = Plugin.DataManager.GetExcelSheet<LogFilter>();
 		}
 
 		internal static void Uninit()

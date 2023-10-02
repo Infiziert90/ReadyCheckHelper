@@ -1,42 +1,29 @@
 ﻿using System;
 using System.Runtime.InteropServices;
-
-using Dalamud.Game;
 using Dalamud.Hooking;
-using Dalamud.Logging;
-
-using FFXIVClientStructs.FFXIV.Client.Game.Group;
-using FFXIVClientStructs.FFXIV.Client.System.Memory;
-using FFXIVClientStructs.FFXIV.Client.UI;
-using FFXIVClientStructs.FFXIV.Component.GUI;
 
 namespace ReadyCheckHelper
 {
 	public static class MemoryHandler
 	{
-		public static void Init( SigScanner sigScanner )
+		public static void Init()
 		{
-			if( sigScanner == null )
-			{
-				throw new Exception( "Error in \"MemoryHandler.Init()\": A null SigScanner was passed!" );
-			}
-
 			//	Get Function Pointers, etc.
 			try
 			{
 				//	When a ready check has been initiated by anyone.
-				mfpOnReadyCheckInitiated = sigScanner.ScanText( "40 ?? 48 83 ?? ?? 48 8B ?? E8 ?? ?? ?? ?? 48 ?? ?? ?? 33 C0 ?? 89" );
+				mfpOnReadyCheckInitiated = Plugin.SigScanner.ScanText( "40 ?? 48 83 ?? ?? 48 8B ?? E8 ?? ?? ?? ?? 48 ?? ?? ?? 33 C0 ?? 89" );
 				if( mfpOnReadyCheckInitiated != IntPtr.Zero )
 				{
-					mReadyCheckInitiatedHook = Hook<ReadyCheckFuncDelegate>.FromAddress( mfpOnReadyCheckInitiated, ReadyCheckInitiatedDetour );
+					mReadyCheckInitiatedHook = Plugin.Hook.HookFromAddress<ReadyCheckFuncDelegate>( mfpOnReadyCheckInitiated, ReadyCheckInitiatedDetour );
 					mReadyCheckInitiatedHook.Enable();
 				}
 
 				//	When a ready check has been completed and processed.
-				mfpOnReadyCheckEnd = sigScanner.ScanText( "40 ?? 53 48 ?? ?? ?? ?? 48 81 ?? ?? ?? ?? ?? 48 8B ?? ?? ?? ?? ?? 48 33 ?? ?? 89 ?? ?? ?? 83 ?? ?? ?? 48 8B ?? 75 ?? 48" );
+				mfpOnReadyCheckEnd = Plugin.SigScanner.ScanText( "40 ?? 53 48 ?? ?? ?? ?? 48 81 ?? ?? ?? ?? ?? 48 8B ?? ?? ?? ?? ?? 48 33 ?? ?? 89 ?? ?? ?? 83 ?? ?? ?? 48 8B ?? 75 ?? 48" );
 				if( mfpOnReadyCheckEnd != IntPtr.Zero )
 				{
-					mReadyCheckEndHook = Hook<ReadyCheckFuncDelegate>.FromAddress( mfpOnReadyCheckEnd, ReadyCheckEndDetour );
+					mReadyCheckEndHook = Plugin.Hook.HookFromAddress<ReadyCheckFuncDelegate>( mfpOnReadyCheckEnd, ReadyCheckEndDetour );
 					mReadyCheckEndHook.Enable();
 				}
 			}
@@ -60,7 +47,7 @@ namespace ReadyCheckHelper
 		private static void ReadyCheckInitiatedDetour( IntPtr ptr )
 		{
 			mReadyCheckInitiatedHook.Original( ptr );
-			PluginLog.LogDebug( $"Ready check initiated with object location: 0x{ptr:X}" );
+			Plugin.Log.Debug( $"Ready check initiated with object location: 0x{ptr:X}" );
 			mpReadyCheckObject = ptr;
 			IsReadyCheckHappening = true;
 			ReadyCheckInitiatedEvent?.Invoke( null, EventArgs.Empty );
@@ -70,7 +57,7 @@ namespace ReadyCheckHelper
 		{
 			mReadyCheckEndHook.Original( ptr );
 			mpReadyCheckObject = ptr;   //	Do this for now because we don't get the ready check begin function called if we don't initiate ready check ourselves.
-			PluginLog.LogDebug( $"Ready check completed with object location: 0x{ptr:X}" );
+			Plugin.Log.Debug( $"Ready check completed with object location: 0x{ptr:X}" );
 			IsReadyCheckHappening = false;
 			UpdateRawReadyCheckData();  //	Update our copy of the data one last time.
 			//***** TODO: Should we uncomment the next line now? The ready check object never seems to move, but we can't guarantee that...It is nice to keep it around for debugging. Maybe at the end of this function, save it off as a debug only address used only by the debug functions? *****
