@@ -221,8 +221,8 @@ namespace ReadyCheckHelper
 
 		private static ExcelSheet<LogFilter> mLogFilterSheet;
 
-		internal static readonly string[] TestNames = new string[]
-		{
+		internal static readonly string[] TestNames =
+		[
 			"Cloud Strife",
 			"Terra Branford",
 			"Zidane Tribal",
@@ -249,6 +249,6 @@ namespace ReadyCheckHelper
 			"Cecil Harvey",
 			"Kain Highwind",
 			"Cid Pollendina"
-		};
+		];
 	}
 }

@@ -29,8 +29,9 @@ namespace ReadyCheckHelper
 
         public static void Uninit()
         {
-            MReadyCheckInitiatedHook?.Disable();
             MReadyCheckInitiatedHook?.Dispose();
+            MReadyCheckEndHook?.Dispose();
+
             MpReadyCheckObject = nint.Zero;
         }
 

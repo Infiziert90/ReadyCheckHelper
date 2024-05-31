@@ -11,6 +11,7 @@ using Dalamud.Game.Command;
 using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
+using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Memory;
 using Dalamud.Plugin;
@@ -20,6 +21,7 @@ using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Client.UI.Info;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using Lumina.Excel.GeneratedSheets;
+using ReadyCheckHelper.Windows;
 
 namespace ReadyCheckHelper
 {
@@ -41,8 +43,14 @@ namespace ReadyCheckHelper
         private const string TextCommandName = "/pready";
         private readonly DalamudLinkPayload OpenReadyCheckWindowLink;
 
-        private Configuration Configuration { get; init; }
-        private PluginUI PluginUi { get; init; }
+        public Configuration Configuration { get; init; }
+
+        public readonly WindowSystem WindowSystem = new("ReadyCheckHelper");
+        public ConfigWindow ConfigWindow { get; init; }
+        public ResultWindow ResultWindow { get; init; }
+        public DebugWindow DebugWindow { get; init; }
+        public ProcessedWindow ProcessedWindow { get; init; }
+        public PartyListOverlay PartyListOverlay { get; init; }
 
         private readonly List<uint> InstancedTerritories = [];
         private List<CorrelatedReadyCheckEntry> ProcessedReadyCheckData;
@@ -62,10 +70,19 @@ namespace ReadyCheckHelper
             LocalizationHelpers.Init();
 
             //	UI Initialization
-            PluginUi = new PluginUI(this, Configuration);
+            ConfigWindow = new ConfigWindow(this);
+            ResultWindow = new ResultWindow(this);
+            DebugWindow = new DebugWindow(this);
+            ProcessedWindow = new ProcessedWindow(this);
+            PartyListOverlay = new PartyListOverlay(this);
+
+            WindowSystem.AddWindow(ConfigWindow);
+            WindowSystem.AddWindow(ResultWindow);
+            WindowSystem.AddWindow(DebugWindow);
+            WindowSystem.AddWindow(ProcessedWindow);
+            WindowSystem.AddWindow(PartyListOverlay);
             PluginInterface.UiBuilder.Draw += DrawUI;
             PluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
-            PluginUi.Initialize();
 
             //	Misc.
             PopulateInstancedTerritoriesList();
@@ -94,7 +111,14 @@ namespace ReadyCheckHelper
             PluginInterface.LanguageChanged -= OnLanguageChanged;
             PluginInterface.RemoveChatLinkHandler();
             CommandManager.RemoveHandler(TextCommandName);
-            PluginUi?.Dispose();
+
+            WindowSystem.RemoveAllWindows();
+            ConfigWindow.Dispose();
+            ResultWindow.Dispose();
+            DebugWindow.Dispose();
+            ProcessedWindow.Dispose();
+            PartyListOverlay.Dispose();
+
             InstancedTerritories.Clear();
             LocalizationHelpers.Uninit();
             TimedOverlayCancellationSource?.Dispose();
@@ -148,24 +172,23 @@ namespace ReadyCheckHelper
             var commandResponse = "";
             if (subCommand.Length == 0)
             {
-                //	For now just have no subcommands act like the config subcommand
-                PluginUi.SettingsWindowVisible = !PluginUi.SettingsWindowVisible;
+                ConfigWindow.Toggle();
             }
             else if (subCommand.Equals("config", StringComparison.CurrentCultureIgnoreCase))
             {
-                PluginUi.SettingsWindowVisible = !PluginUi.SettingsWindowVisible;
+                ConfigWindow.Toggle();
             }
             else if (subCommand.Equals("debug", StringComparison.CurrentCultureIgnoreCase))
             {
-                PluginUi.DebugWindowVisible = !PluginUi.DebugWindowVisible;
+                DebugWindow.Toggle();
             }
             else if (subCommand.Equals("results", StringComparison.CurrentCultureIgnoreCase))
             {
-                PluginUi.ReadyCheckResultsWindowVisible = !PluginUi.ReadyCheckResultsWindowVisible;
+                ResultWindow.Toggle();
             }
             else if (subCommand.Equals("clear", StringComparison.CurrentCultureIgnoreCase))
             {
-                PluginUi.InvalidateReadyCheck();
+                PartyListOverlay.InvalidateReadyCheck();
             }
             else if (subCommand.Equals("help", StringComparison.CurrentCultureIgnoreCase) || subCommand.Equals("?", StringComparison.CurrentCultureIgnoreCase))
             {
@@ -196,12 +219,12 @@ namespace ReadyCheckHelper
 
         private void DrawUI()
         {
-            PluginUi.Draw();
+            WindowSystem.Draw();
         }
 
         private void DrawConfigUI()
         {
-            PluginUi.SettingsWindowVisible = true;
+            ConfigWindow.Toggle();
         }
 
         private void OnGameFrameworkUpdate(IFramework framework)
@@ -218,7 +241,7 @@ namespace ReadyCheckHelper
 
             //	Flag that we should start processing the data every frame.
             ReadyCheckActive = true;
-            PluginUi.ShowReadyCheckOverlay();
+            PartyListOverlay.ShowReadyCheckOverlay();
             TimedOverlayCancellationSource?.Cancel();
         }
 
@@ -230,7 +253,7 @@ namespace ReadyCheckHelper
 
             //	Flag that we don't need to keep updating.
             ReadyCheckActive = false;
-            PluginUi.ShowReadyCheckOverlay();
+            PartyListOverlay.ShowReadyCheckOverlay();
 
             //	Process the data one last time to ensure that we have the latest results.
             ProcessReadyCheckResults();
@@ -267,7 +290,7 @@ namespace ReadyCheckHelper
                     }
 
                     if (!ReadyCheckActive)
-                        PluginUi.InvalidateReadyCheck();
+                        PartyListOverlay.InvalidateReadyCheck();
                 });
             }
         }
@@ -442,7 +465,7 @@ namespace ReadyCheckHelper
                     //***** TODO: Try to show built in ready check window.  The addon doesn't exist unless it's opened, so this might be difficult. *****
                 }
 
-                PluginUi.ReadyCheckResultsWindowVisible = true;
+                ResultWindow.IsOpen = true;
             }
         }
 
@@ -453,9 +476,9 @@ namespace ReadyCheckHelper
                 if (value)
                 {
                     if (Configuration.ClearReadyCheckOverlayInCombat)
-                        PluginUi.InvalidateReadyCheck();
+                        PartyListOverlay.InvalidateReadyCheck();
                     else if (Configuration.ClearReadyCheckOverlayInCombatInInstancedCombat && InstancedTerritories.Contains(ClientState.TerritoryType))
-                        PluginUi.InvalidateReadyCheck();
+                        PartyListOverlay.InvalidateReadyCheck();
                 }
             }
         }
@@ -463,14 +486,14 @@ namespace ReadyCheckHelper
         private void OnTerritoryChanged(ushort id)
         {
             if (Configuration.ClearReadyCheckOverlayEnteringInstance && InstancedTerritories.Contains(id))
-                PluginUi.InvalidateReadyCheck();
+                PartyListOverlay.InvalidateReadyCheck();
         }
 
         private void OnLogout()
         {
             ReadyCheckActive = false;
             TimedOverlayCancellationSource?.Cancel();
-            PluginUi.InvalidateReadyCheck();
+            PartyListOverlay.InvalidateReadyCheck();
             ProcessedReadyCheckData = null;
         }
 
