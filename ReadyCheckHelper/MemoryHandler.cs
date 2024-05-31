@@ -1,240 +1,137 @@
 ﻿using System;
-using System.Runtime.InteropServices;
 using Dalamud.Hooking;
+using FFXIVClientStructs.FFXIV.Client.Game.Group;
+using FFXIVClientStructs.FFXIV.Client.UI.Agent;
+using FFXIVClientStructs.FFXIV.Client.UI.Info;
 
 namespace ReadyCheckHelper
 {
-	public static class MemoryHandler
-	{
-		public static void Init()
-		{
-			//	Get Function Pointers, etc.
-			try
-			{
-				//	When a ready check has been initiated by anyone.
-				mfpOnReadyCheckInitiated = Plugin.SigScanner.ScanText( "40 ?? 48 83 ?? ?? 48 8B ?? E8 ?? ?? ?? ?? 48 ?? ?? ?? 33 C0 ?? 89" );
-				if( mfpOnReadyCheckInitiated != IntPtr.Zero )
-				{
-					mReadyCheckInitiatedHook = Plugin.Hook.HookFromAddress<ReadyCheckFuncDelegate>( mfpOnReadyCheckInitiated, ReadyCheckInitiatedDetour );
-					mReadyCheckInitiatedHook.Enable();
-				}
+    public static class MemoryHandler
+    {
+        public static void Init()
+        {
+            try
+            {
+                // TODO: Replace with CS version after https://github.com/aers/FFXIVClientStructs/pull/882 got merged
+                MfpOnReadyCheckInitiated = Plugin.SigScanner.ScanText("40 ?? 48 83 ?? ?? 48 8B ?? E8 ?? ?? ?? ?? 48 ?? ?? ?? 33 C0 ?? 89");
+                MReadyCheckInitiatedHook = Plugin.Hook.HookFromAddress<ReadyCheckFuncDelegate>(MfpOnReadyCheckInitiated, ReadyCheckInitiatedDetour);
+                MReadyCheckInitiatedHook.Enable();
 
-				//	When a ready check has been completed and processed.
-				mfpOnReadyCheckEnd = Plugin.SigScanner.ScanText( "40 ?? 53 48 ?? ?? ?? ?? 48 81 ?? ?? ?? ?? ?? 48 8B ?? ?? ?? ?? ?? 48 33 ?? ?? 89 ?? ?? ?? 83 ?? ?? ?? 48 8B ?? 75 ?? 48" );
-				if( mfpOnReadyCheckEnd != IntPtr.Zero )
-				{
-					mReadyCheckEndHook = Plugin.Hook.HookFromAddress<ReadyCheckFuncDelegate>( mfpOnReadyCheckEnd, ReadyCheckEndDetour );
-					mReadyCheckEndHook.Enable();
-				}
-			}
-			catch( Exception e )
-			{
-				throw new Exception( $"Error in \"MemoryHandler.Init()\" while searching for required function signatures; this probably means that the plugin needs to be updated due to changes in Final Fantasy XIV.  Raw exception as follows:\r\n{e}" );
-			}
-		}
+                MfpOnReadyCheckEnd = Plugin.SigScanner.ScanText("40 ?? 53 48 ?? ?? ?? ?? 48 81 ?? ?? ?? ?? ?? 48 8B ?? ?? ?? ?? ?? 48 33 ?? ?? 89 ?? ?? ?? 83 ?? ?? ?? 48 8B ?? 75 ?? 48");
+                MReadyCheckEndHook = Plugin.Hook.HookFromAddress<ReadyCheckFuncDelegate>(MfpOnReadyCheckEnd, ReadyCheckEndDetour);
+                MReadyCheckEndHook.Enable();
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Error while searching for required function signatures; this probably means that the plugin needs to be updated due to changes in Final Fantasy XIV.\n{ex}");
+            }
+        }
 
-		public static void Uninit()
-		{
-			mReadyCheckInitiatedHook?.Disable();
-			mReadyCheckEndHook?.Disable();
-			mReadyCheckInitiatedHook?.Dispose();
-			mReadyCheckEndHook?.Dispose();
-			mReadyCheckInitiatedHook = null;
-			mReadyCheckEndHook = null;
-			mpReadyCheckObject = IntPtr.Zero;
-		}
+        public static void Uninit()
+        {
+            MReadyCheckInitiatedHook?.Disable();
+            MReadyCheckInitiatedHook?.Dispose();
+            MpReadyCheckObject = nint.Zero;
+        }
 
-		private static void ReadyCheckInitiatedDetour( IntPtr ptr )
-		{
-			mReadyCheckInitiatedHook.Original( ptr );
-			Plugin.Log.Debug( $"Ready check initiated with object location: 0x{ptr:X}" );
-			mpReadyCheckObject = ptr;
-			IsReadyCheckHappening = true;
-			ReadyCheckInitiatedEvent?.Invoke( null, EventArgs.Empty );
-		}
+        private static void ReadyCheckInitiatedDetour(nint ptr)
+        {
+            MReadyCheckInitiatedHook.Original(ptr);
+            MpReadyCheckObject = ptr;
+            ReadyCheckInitiatedEvent?.Invoke(null, EventArgs.Empty);
+        }
 
-		private static void ReadyCheckEndDetour( IntPtr ptr )
-		{
-			mReadyCheckEndHook.Original( ptr );
-			mpReadyCheckObject = ptr;   //	Do this for now because we don't get the ready check begin function called if we don't initiate ready check ourselves.
-			Plugin.Log.Debug( $"Ready check completed with object location: 0x{ptr:X}" );
-			IsReadyCheckHappening = false;
-			UpdateRawReadyCheckData();  //	Update our copy of the data one last time.
-			//***** TODO: Should we uncomment the next line now? The ready check object never seems to move, but we can't guarantee that...It is nice to keep it around for debugging. Maybe at the end of this function, save it off as a debug only address used only by the debug functions? *****
-			//mpReadyCheckObject = IntPtr.Zero;	//Ideally clean this up once the ready check is complete, because this isn't in the static section, so we don't have a guarantee that it's the same every time.  For now, we can't really get rid of it, because we don't have a ready check started hook unless you're the initiator.
-			ReadyCheckCompleteEvent?.Invoke( null, EventArgs.Empty );
-		}
+        private static void ReadyCheckEndDetour(nint ptr)
+        {
+            MReadyCheckEndHook.Original(ptr);
 
-		private static bool CanGetRawReadyCheckData()
-		{
-			return mpReadyCheckObject != IntPtr.Zero;
-		}
+            //	Do this for now because we don't get the ready check begin function called if we don't initiate ready check ourselves.
+            MpReadyCheckObject = ptr;
 
-		private static void UpdateRawReadyCheckData()
-		{
-			lock( mRawReadyCheckArray.SyncRoot )
-			{
-				if( CanGetRawReadyCheckData() )
-				{
-					Marshal.Copy( new IntPtr( mpReadyCheckObject.ToInt64() + mArrayOffset ), mRawReadyCheckArray, 0, mRawReadyCheckArray.Length );
-				}
-			}
-		}
+            //	Update our copy of the data one last time.
+            ReadyCheckCompleteEvent?.Invoke(null, EventArgs.Empty);
+        }
 
-		public static IntPtr DEBUG_GetReadyCheckObjectAddress()
-		{
-			return mpReadyCheckObject;
-		}
+        public static nint DEBUG_GetReadyCheckObjectAddress()
+        {
+            return MpReadyCheckObject;
+        }
 
-		public static void DEBUG_SetReadyCheckObjectAddress( IntPtr ptr )
-		{
-			mpReadyCheckObject = ptr;
-		}
+        public static void DEBUG_SetReadyCheckObjectAddress(nint ptr)
+        {
+            MpReadyCheckObject = ptr;
+        }
 
-		public static bool DEBUG_GetRawReadyCheckObjectStuff( out byte[] rawDataArray )
-		{
-			rawDataArray = new byte[mArrayOffset];
-			if( CanGetRawReadyCheckData() )
-			{
-				Marshal.Copy( new IntPtr( mpReadyCheckObject.ToInt64() ), rawDataArray, 0, mArrayOffset );
-			}
-			return CanGetRawReadyCheckData();
-		}
+        internal static unsafe PartyListLayoutResult? GetHUDIndicesForChar(ulong contentID, uint objectID)
+        {
+            if (contentID == 0 && objectID is 0 or 0xE0000000)
+                return null;
 
-		public static bool DEBUG_GetRawReadyCheckData( out IntPtr[] rawDataArray )
-		{
-			rawDataArray = new IntPtr[mArrayLength];
-			UpdateRawReadyCheckData();
-			lock( mRawReadyCheckArray.SyncRoot )
-			{
-				Array.Copy( mRawReadyCheckArray, rawDataArray, mArrayLength );
-			}
-			return CanGetRawReadyCheckData();
-		}
+            var infoProxyCrossRealm = InfoProxyCrossRealm.Instance();
+            var groupManager = GroupManager.Instance();
+            var agentHud = AgentHUD.Instance();
+            if (infoProxyCrossRealm == null || groupManager == null)
+                return null;
 
-		public static ReadyCheckInfo[] GetReadyCheckInfo()
-		{
-			UpdateRawReadyCheckData();
+            //	We're only in a crossworld party if the cross realm proxy says we are; however, it can say we're cross-realm when
+            //	we're in a regular party if we entered an instance as a cross-world party, so account for that too.
+            if (groupManager->MemberCount > 0)
+            {
+                for (var i = 0; i < 8; ++i)
+                {
+                    var charData = groupManager->PartyMembersSpan[i];
+                    if (contentID > 0 && contentID == (ulong) charData.ContentID)
+                        return new PartyListLayoutResult(false, 0, i);
 
-			ReadyCheckInfo[] retVal = new ReadyCheckInfo[mArrayLength/2];
+                    if (objectID > 0 && objectID != 0xE0000000 && objectID == charData.ObjectID)
+                        return new PartyListLayoutResult(false, 0, i);
+                }
 
-			lock( mRawReadyCheckArray.SyncRoot )
-			{
-				for( int i = 0; i < retVal.Length; ++i )
-				{
-					retVal[i] = new ReadyCheckInfo( (ReadyCheckStateEnum)(mRawReadyCheckArray[i * 2 + 1].ToInt64() & 0xFF),
-													(UInt64)mRawReadyCheckArray[i * 2] );
-				}
-			}
+                for (var i = 0; i < 40; ++i)
+                {
+                    if (objectID > 0 && objectID != 0xE0000000 && objectID == agentHud->RaidMemberIds[i])
+                        return new PartyListLayoutResult(false, i / 8 + 1, i % 8);
+                }
+            }
+            else if (infoProxyCrossRealm->IsCrossRealm > 0)
+            {
+                var pGroupMember = InfoProxyCrossRealm.GetMemberByContentId(contentID);
+                if (pGroupMember == null || contentID == 0)
+                    return null;
+                return new PartyListLayoutResult(true, pGroupMember->GroupIndex, pGroupMember->MemberIndex);
+            }
 
-			return retVal;
-		}
+            return null;
+        }
 
-		internal static unsafe PartyListLayoutResult? GetHUDIndicesForChar( UInt64 contentID, UInt32 objectID )
-		{
-			if( contentID == 0  && ( objectID == 0 || objectID == 0xE0000000 ) )
-			{
-				return null;
-			}
+        //	Misc.
+        private static nint MpReadyCheckObject;
 
-			//	MS please give us an ?-> operator ;_;
-			if( FFXIVClientStructs.FFXIV.Client.UI.Info.InfoProxyCrossRealm.Instance() == null ||
-				FFXIVClientStructs.FFXIV.Client.Game.Group.GroupManager.Instance() == null ||
-				FFXIVClientStructs.FFXIV.Client.System.Framework.Framework.Instance()->GetUiModule() == null ||
-				FFXIVClientStructs.FFXIV.Client.System.Framework.Framework.Instance()->GetUiModule()->GetAgentModule() == null ||
-				FFXIVClientStructs.FFXIV.Client.System.Framework.Framework.Instance()->GetUiModule()->GetAgentModule()->GetAgentHUD() == null )
-			{
-				return null;
-			}
+        //	Delegates
+        private delegate void ReadyCheckFuncDelegate(nint ptr);
 
-			var pAgentHUD = FFXIVClientStructs.FFXIV.Client.System.Framework.Framework.Instance()->GetUiModule()->GetAgentModule()->GetAgentHUD();
+        private static nint MfpOnReadyCheckInitiated = nint.Zero;
+        private static Hook<ReadyCheckFuncDelegate> MReadyCheckInitiatedHook;
 
-			//	We're only in a crossworld party if the cross realm proxy says we are; however, it can say we're cross-realm when
-			//	we're in a regular party if we entered an instance as a cross-world party, so account for that too.
-			if( FFXIVClientStructs.FFXIV.Client.Game.Group.GroupManager.Instance()->MemberCount > 0 )
-			{
-				for( int i = 0; i < 8; ++i )
-				{
-					var offset = i * Marshal.SizeOf<PartyListCharInfo>();
-					var pCharData = pAgentHUD->PartyMemberList + offset;
-					var charData = *(PartyListCharInfo*)pCharData;
-					if( contentID > 0 && contentID == charData.ContentID ) return new( false, 0, i );
-					if( objectID > 0 && objectID != 0xE0000000 && objectID == charData.ObjectID ) return new( false, 0, i );
-				}
-				for( int i = 0; i < 40; ++i )
-				{
-					if( objectID > 0 && objectID != 0xE0000000 && objectID == pAgentHUD->RaidMemberIds[i] )
-					{
-						return new( false, i / 8 + 1, i % 8 );
-					}
-				}
-			}
-			else if( FFXIVClientStructs.FFXIV.Client.UI.Info.InfoProxyCrossRealm.Instance()->IsCrossRealm > 0 )
-			{
-				var pGroupMember = FFXIVClientStructs.FFXIV.Client.UI.Info.InfoProxyCrossRealm.GetMemberByContentId( contentID );
-				if( pGroupMember == null || contentID == 0 ) return null;
-				return new( true, pGroupMember->GroupIndex, pGroupMember->MemberIndex );
-			}
+        private static nint MfpOnReadyCheckEnd = nint.Zero;
+        private static Hook<ReadyCheckFuncDelegate> MReadyCheckEndHook;
 
-			return null;
-		}
+        //	Events
+        public static event EventHandler ReadyCheckInitiatedEvent;
+        public static event EventHandler ReadyCheckCompleteEvent;
+    }
 
-		//	Magic Numbers
-		private static readonly int mArrayOffset = 0xB0;
-		private static readonly int mArrayLength = 96;
+    internal struct PartyListLayoutResult
+    {
+        internal PartyListLayoutResult(bool crossWorld, int groupNumber, int partyMemberIndex)
+        {
+            CrossWorld = crossWorld;
+            GroupNumber = groupNumber;
+            PartyMemberIndex = partyMemberIndex;
+        }
 
-		//	Misc.
-		private static IntPtr mpReadyCheckObject;
-		private static readonly IntPtr[] mRawReadyCheckArray = new IntPtr[mArrayLength]; //Need to use IntPtr as the type here because of our marshaling options.  Can convert it later.
-
-		public static bool IsReadyCheckHappening { get; private set; } = false;
-
-		//	Delgates
-		private delegate void ReadyCheckFuncDelegate( IntPtr ptr );
-
-		private static IntPtr mfpOnReadyCheckInitiated = IntPtr.Zero;
-		private static Hook<ReadyCheckFuncDelegate> mReadyCheckInitiatedHook;
-
-		private static IntPtr mfpOnReadyCheckEnd = IntPtr.Zero;
-		private static Hook<ReadyCheckFuncDelegate> mReadyCheckEndHook;
-
-		//	Events
-		public static event EventHandler ReadyCheckInitiatedEvent;
-		public static event EventHandler ReadyCheckCompleteEvent;
-
-		public struct ReadyCheckInfo
-		{
-			public ReadyCheckInfo( ReadyCheckStateEnum readyFlag, UInt64 id )
-			{
-				ReadyFlag = readyFlag;
-				ID = id;
-			}
-
-			public ReadyCheckStateEnum ReadyFlag { get; private set; }
-			public UInt64 ID { get; private set; }
-		}
-
-		public enum ReadyCheckStateEnum : byte
-		{
-			Unknown = 0,
-			AwaitingResponse = 1,
-			Ready = 2,
-			NotReady = 3,
-			CrossWorldMemberNotPresent = 4
-		}
-	}
-
-	internal struct PartyListLayoutResult
-	{
-		internal PartyListLayoutResult( bool crossWorld, int groupNumber, int partyMemberIndex )
-		{
-			CrossWorld = crossWorld;
-			GroupNumber = groupNumber;
-			PartyMemberIndex = partyMemberIndex;
-		}
-
-		internal bool CrossWorld;
-		internal int GroupNumber;
-		internal int PartyMemberIndex;
-	}
+        internal readonly bool CrossWorld;
+        internal readonly int GroupNumber;
+        internal readonly int PartyMemberIndex;
+    }
 }

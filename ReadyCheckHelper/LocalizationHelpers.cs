@@ -14,7 +14,7 @@ namespace ReadyCheckHelper
 		internal static string ConstructNotReadyString_ja( List<string> notReadyList, int maxUnreadyToList )
 		{
 			var trimmedList = new List<string>( notReadyList.Take( maxUnreadyToList ) );
-			int numExtra = Math.Max( 0, notReadyList.Count - trimmedList.Count );
+			var numExtra = Math.Max( 0, notReadyList.Count - trimmedList.Count );
 			if( numExtra > 1 )
 			{
 				trimmedList.Add( $"その他{numExtra}人" );
@@ -24,9 +24,9 @@ namespace ReadyCheckHelper
 				trimmedList.Add( $"その他" );
 			}
 
-			string notReadyString = "×：";
+			var notReadyString = "×：";
 
-			for( int i = 0; i < trimmedList.Count; ++i )
+			for( var i = 0; i < trimmedList.Count; ++i )
 			{
 				//	If there's only one person, just put their name.
 				if( trimmedList.Count == 1 )
@@ -56,15 +56,15 @@ namespace ReadyCheckHelper
 		internal static string ConstructNotReadyString_en( List<string> notReadyList, int maxUnreadyToList )
 		{
 			var trimmedList = new List<string>( notReadyList.Take( maxUnreadyToList ) );
-			int numExtra = Math.Max( 0, notReadyList.Count - trimmedList.Count );
+			var numExtra = Math.Max( 0, notReadyList.Count - trimmedList.Count );
 			if( numExtra > 0 )
 			{
 				trimmedList.Add( $"{numExtra} {( numExtra > 1 ? "others" : "other" )}" );
 			}
 
-			string notReadyString = "Not Ready: ";
+			var notReadyString = "Not Ready: ";
 
-			for( int i = 0; i < trimmedList.Count; ++i )
+			for( var i = 0; i < trimmedList.Count; ++i )
 			{
 				//	If there's only one person, just put their name.
 				if( trimmedList.Count == 1 )
@@ -95,15 +95,15 @@ namespace ReadyCheckHelper
 		internal static string ConstructNotReadyString_de( List<string> notReadyList, int maxUnreadyToList )
 		{
 			var trimmedList = new List<string>( notReadyList.Take( maxUnreadyToList ) );
-			int numExtra = Math.Max( 0, notReadyList.Count - trimmedList.Count );
+			var numExtra = Math.Max( 0, notReadyList.Count - trimmedList.Count );
 			if( numExtra > 0 )
 			{
 				trimmedList.Add( $"{numExtra} andere" );
 			}
 
-			string notReadyString = "Nicht bereit: ";
+			var notReadyString = "Nicht bereit: ";
 
-			for( int i = 0; i < trimmedList.Count; ++i )
+			for( var i = 0; i < trimmedList.Count; ++i )
 			{
 				//	If there's only one person, just put their name.
 				if( trimmedList.Count == 1 )
@@ -133,15 +133,15 @@ namespace ReadyCheckHelper
 		internal static string ConstructNotReadyString_fr( List<string> notReadyList, int maxUnreadyToList )
 		{
 			var trimmedList = new List<string>( notReadyList.Take( maxUnreadyToList ) );
-			int numExtra = Math.Max( 0, notReadyList.Count - trimmedList.Count );
+			var numExtra = Math.Max( 0, notReadyList.Count - trimmedList.Count );
 			if( numExtra > 0 )
 			{
 				trimmedList.Add( $"{numExtra} {( numExtra > 1 ? "autres" : "autre" )}" );
 			}
 
-			string notReadyString = "Non prêts : ";
+			var notReadyString = "Non prêts : ";
 
-			for( int i = 0; i < trimmedList.Count; ++i )
+			for( var i = 0; i < trimmedList.Count; ++i )
 			{
 				//	If there's only one person, just put their name.
 				if( trimmedList.Count == 1 )
@@ -172,15 +172,15 @@ namespace ReadyCheckHelper
 		internal static string ConstructNotReadyString_ko( List<string> notReadyList, int maxUnreadyToList )
 		{
 			var trimmedList = new List<string>( notReadyList.Take( maxUnreadyToList ) );
-			int numExtra = Math.Max( 0, notReadyList.Count - trimmedList.Count );
+			var numExtra = Math.Max( 0, notReadyList.Count - trimmedList.Count );
 			if( numExtra > 0 )
 			{
 				trimmedList.Add( $"외 {numExtra} 명" );
 			}
 
-			string notReadyString = "준비 안됨: ";
+			var notReadyString = "준비 안됨: ";
 
-			for( int i = 0; i < trimmedList.Count; ++i )
+			for( var i = 0; i < trimmedList.Count; ++i )
 			{
 				//	If it's the last entry in the list, just put it.
 				if( i == trimmedList.Count - 1 )

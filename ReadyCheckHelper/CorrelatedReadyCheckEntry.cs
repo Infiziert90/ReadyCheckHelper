@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using static FFXIVClientStructs.FFXIV.Client.UI.Agent.AgentReadyCheck;
 
 namespace ReadyCheckHelper;
 
@@ -10,7 +6,7 @@ namespace ReadyCheckHelper;
 //	for our data model since the game has this information scattered in annoying to use ways.
 internal struct CorrelatedReadyCheckEntry
 {
-	internal CorrelatedReadyCheckEntry( string name, UInt64 contentID, UInt32 objectID, MemoryHandler.ReadyCheckStateEnum readyState, byte groupIndex, byte memberIndex )
+	internal CorrelatedReadyCheckEntry( string name, ulong contentID, uint objectID, ReadyCheckStatus readyState, byte groupIndex, byte memberIndex )
 	{
 		Name = name;
 		ContentID = contentID;
@@ -21,9 +17,9 @@ internal struct CorrelatedReadyCheckEntry
 	}
 
 	internal string Name { get; private set; }
-	internal UInt64 ContentID { get; private set; }
-	internal UInt32 ObjectID { get; private set; }
-	internal MemoryHandler.ReadyCheckStateEnum ReadyState { get; private set; }
+	internal ulong ContentID { get; private set; }
+	internal uint ObjectID { get; private set; }
+	internal ReadyCheckStatus ReadyState { get; private set; }
 	internal byte GroupIndex { get; private set; }
 	internal byte MemberIndex { get; private set; }	//	Take care using this; it can be very misleading.
 }

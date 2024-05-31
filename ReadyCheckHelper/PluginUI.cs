@@ -4,8 +4,6 @@ using System.Numerics;
 using System.Linq;
 using System.Globalization;
 using System.IO;
-using System.Runtime.InteropServices;
-
 using ImGuiNET;
 using Lumina.Excel.GeneratedSheets;
 using Dalamud.Interface;
@@ -14,11 +12,10 @@ using FFXIVClientStructs.FFXIV.Component.GUI;
 using CheapLoc;
 using Dalamud.Interface.Internal;
 using Dalamud.Interface.Utility;
+using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 
 namespace ReadyCheckHelper
 {
-	// It is good to have this be disposable in general, in case you ever need it
-	// to do any cleanup
 	public class PluginUI : IDisposable
 	{
 		private Plugin Plugin;
@@ -38,9 +35,7 @@ namespace ReadyCheckHelper
 		{
 			var classJobSheet = Plugin.DataManager.GetExcelSheet<ClassJob>()!;
 			foreach( var job in classJobSheet.ToList() )
-			{
 				JobDict.Add( job.RowId, job.Abbreviation );
-			}
 
 			mReadyCheckIconTexture		??= Plugin.Texture.GetTextureFromGame( "ui/uld/ReadyCheck_hr1.tex" ) ?? Plugin.Texture.GetTextureFromGame( "ui/uld/ReadyCheck.tex" );
 			mUnknownStatusIconTexture	??= Plugin.Texture.GetIcon( 60072 );
@@ -53,7 +48,6 @@ namespace ReadyCheckHelper
 			DrawSettingsWindow();
 			DrawReadyCheckResultsWindow();
 			DrawDebugWindow();
-			DrawDebugRawWindow();
 			DrawDebugProcessedWindow();
 
 			//	Draw other UI stuff.
@@ -81,7 +75,7 @@ namespace ReadyCheckHelper
 					ImGui.SliderInt( "##MaxUnreadyNamesToShowInChat", ref Configuration.mMaxUnreadyToListInChat, 1, 48 );
 					ImGui.Spacing();
 					ImGui.Text( Loc.Localize( "Config Option: Chat Message Channel", "Chat Log Channel:" ) );
-					ImGuiHelpMarker( String.Format( Loc.Localize( "Help: Chat Message Channel", "Sets the channel in which this chat message is shown.  Leave this set to the default value ({0}) unless it causes problems with your chat configuration.  This only affects the unready players message; all other messages from this plugin respect your choice of chat channel in Dalamud settings." ), LocalizationHelpers.GetTranslatedChatChannelName( Dalamud.Game.Text.XivChatType.SystemMessage ) ) );
+					ImGuiHelpMarker( string.Format( Loc.Localize( "Help: Chat Message Channel", "Sets the channel in which this chat message is shown.  Leave this set to the default value ({0}) unless it causes problems with your chat configuration.  This only affects the unready players message; all other messages from this plugin respect your choice of chat channel in Dalamud settings." ), LocalizationHelpers.GetTranslatedChatChannelName( Dalamud.Game.Text.XivChatType.SystemMessage ) ) );
 					if( ImGui.BeginCombo( "###NotReadyMessageChatChannelDropdown", LocalizationHelpers.GetTranslatedChatChannelName( Configuration.ChatChannelToUseForNotReadyMessage ) ) )
 					{
 						foreach( Dalamud.Game.Text.XivChatType entry in Enum.GetValues( typeof( Dalamud.Game.Text.XivChatType ) ) )
@@ -173,23 +167,23 @@ namespace ReadyCheckHelper
 
 					if( ImGui.BeginTable( "###LatestReadyCheckResultsTable", tableList.Count ) )
 					{
-						for( int i = 0; i < 8; ++i )
+						for( var i = 0; i < 8; ++i )
 						{
 							ImGui.TableNextRow();
-							for( int j = 0; j < tableList.Count; ++j )
+							for( var j = 0; j < tableList.Count; ++j )
 							{
 								ImGui.TableSetColumnIndex( j );
 								if( i < tableList[j].Count )
 								{
-									if( tableList[j][i].ReadyState == MemoryHandler.ReadyCheckStateEnum.Ready )
+									if( tableList[j][i].ReadyState == AgentReadyCheck.ReadyCheckStatus.Ready )
 									{
 										ImGui.Image( mReadyCheckIconTexture.ImGuiHandle, new Vector2( 24 ), new Vector2( 0.0f ), new Vector2( 0.5f, 1.0f ) );
 									}
-									else if( tableList[j][i].ReadyState == MemoryHandler.ReadyCheckStateEnum.NotReady )
+									else if( tableList[j][i].ReadyState == AgentReadyCheck.ReadyCheckStatus.NotReady )
 									{
 										ImGui.Image( mReadyCheckIconTexture.ImGuiHandle, new Vector2( 24 ), new Vector2( 0.5f, 0.0f ), new Vector2( 1.0f ) );
 									}
-									else if( tableList[j][i].ReadyState == MemoryHandler.ReadyCheckStateEnum.CrossWorldMemberNotPresent )
+									else if( tableList[j][i].ReadyState == AgentReadyCheck.ReadyCheckStatus.MemberNotPresent )
 									{
 										ImGui.Image( mNotPresentIconTexture.ImGuiHandle, new Vector2( 24 ) );
 									}
@@ -248,26 +242,26 @@ namespace ReadyCheckHelper
 					unsafe
 					{
 						var pAgentHUD = FFXIVClientStructs.FFXIV.Client.System.Framework.Framework.Instance()->GetUiModule()->GetAgentModule()->GetAgentHUD();
-						if( (IntPtr)FFXIVClientStructs.FFXIV.Client.Game.Group.GroupManager.Instance() == IntPtr.Zero )
+						if( (nint)FFXIVClientStructs.FFXIV.Client.Game.Group.GroupManager.Instance() == nint.Zero )
 						{
 							ImGui.Text( "The GroupManager instance pointer is null!" );
 						}
-						else if( (IntPtr)FFXIVClientStructs.FFXIV.Client.UI.Info.InfoProxyCrossRealm.Instance() == IntPtr.Zero )
+						else if( (nint)FFXIVClientStructs.FFXIV.Client.UI.Info.InfoProxyCrossRealm.Instance() == nint.Zero )
 						{
 							ImGui.Text( "The InfoProxyCrossRealm instance pointer is null!" );
 						}
 						else
 						{
-							var readyCheckdata = MemoryHandler.GetReadyCheckInfo();
+							var readyCheckdata = AgentReadyCheck.Instance()->ReadyCheckEntriesSpan;
 
 							ImGui.Columns( 5 );
 							ImGui.Text( "General Info:" );
 
 							ImGui.Text( $"Number of Party Members: {FFXIVClientStructs.FFXIV.Client.Game.Group.GroupManager.Instance()->MemberCount}" );
 							ImGui.Text( $"Is Cross-World: {FFXIVClientStructs.FFXIV.Client.UI.Info.InfoProxyCrossRealm.Instance()->IsCrossRealm}" );
-							byte crossWorldGroupCount = FFXIVClientStructs.FFXIV.Client.UI.Info.InfoProxyCrossRealm.Instance()->GroupCount;
+							var crossWorldGroupCount = FFXIVClientStructs.FFXIV.Client.UI.Info.InfoProxyCrossRealm.Instance()->GroupCount;
 							ImGui.Text( $"Number of Cross-World Groups: {crossWorldGroupCount}" );
-							for( int i = 0; i < crossWorldGroupCount; ++i )
+							for( var i = 0; i < crossWorldGroupCount; ++i )
 							{
 								ImGui.Text( $"Number of Party Members (Group {i}): {FFXIVClientStructs.FFXIV.Client.UI.Info.InfoProxyCrossRealm.GetGroupMemberCount( i )}" );
 							}
@@ -276,7 +270,7 @@ namespace ReadyCheckHelper
 							ImGui.Spacing();
 							ImGui.Spacing();
 							ImGui.Text( $"Ready Check Object Address: 0x{MemoryHandler.DEBUG_GetReadyCheckObjectAddress():X}" );
-							ImGui.Text( $"Hud Agent Address: 0x{new IntPtr(pAgentHUD):X}" );
+							ImGui.Text( $"Hud Agent Address: 0x{new nint(pAgentHUD):X}" );
 							ImGui.Checkbox( "Show Raw Readycheck Data", ref mDebugRawWindowVisible );
 							ImGui.Checkbox( "Show Processed Readycheck Data", ref mDebugProcessedWindowVisible );
 							ImGui.Checkbox( "Debug Drawing on Party List", ref mDEBUG_DrawPlaceholderData );
@@ -290,8 +284,8 @@ namespace ReadyCheckHelper
 							}
 							if( ImGui.Button( "Export Localizable Strings" ) )
 							{
-								string pwd = Directory.GetCurrentDirectory();
-								Directory.SetCurrentDirectory( Plugin.PluginInterface.AssemblyLocation.DirectoryName );
+								var pwd = Directory.GetCurrentDirectory();
+								Directory.SetCurrentDirectory( Plugin.PluginInterface.AssemblyLocation.DirectoryName! );
 								Loc.ExportLocalizable();
 								Directory.SetCurrentDirectory( pwd );
 							}
@@ -304,24 +298,24 @@ namespace ReadyCheckHelper
 							ImGui.InputText( "##ObjectAddressSetInputBox", ref mDEBUG_ReadyCheckObjectAddressInputString, 16 );
 							if( ImGui.Button( "Set Ready Check Object Address" ) )
 							{
-								bool isValidPointer = IntPtr.TryParse( mDEBUG_ReadyCheckObjectAddressInputString, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out IntPtr ptr );
+								var isValidPointer = nint.TryParse( mDEBUG_ReadyCheckObjectAddressInputString, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var ptr );
 								if( isValidPointer ) MemoryHandler.DEBUG_SetReadyCheckObjectAddress( ptr );
 							}
 							ImGui.PopStyleColor();
 							ImGui.NextColumn();
 							ImGui.Text( "Ready Check Data:" );
-							for( int i = 0; i < readyCheckdata.Length; ++i )
+							for( var i = 0; i < readyCheckdata.Length; ++i )
 							{
-								ImGui.Text( $"ID: {readyCheckdata[i].ID:X16}, State: {readyCheckdata[i].ReadyFlag}" );
+								ImGui.Text( $"ID: {readyCheckdata[i].ContentID:X16}, State: {readyCheckdata[i].Status}" );
 							}
 							ImGui.NextColumn();
 							ImGui.Text( "Party Data:" );
-							for( int i = 0; i < 8; ++i )
+							for( var i = 0; i < 8; ++i )
 							{
 								var pGroupMember = FFXIVClientStructs.FFXIV.Client.Game.Group.GroupManager.Instance()->GetPartyMemberByIndex( i );
-								if( (IntPtr)pGroupMember != IntPtr.Zero )
+								if( (nint)pGroupMember != nint.Zero )
 								{
-									string name = MemoryHelper.ReadSeStringNullTerminated( (IntPtr)pGroupMember->Name ).ToString();
+									var name = MemoryHelper.ReadSeStringNullTerminated( (nint)pGroupMember->Name ).ToString();
 									string classJobAbbr = JobDict.TryGetValue( pGroupMember->ClassJob, out classJobAbbr ) ? classJobAbbr : "ERR";
 									ImGui.Text( $"Job: {classJobAbbr}, OID: {pGroupMember->ObjectID:X8}, CID: {pGroupMember->ContentID:X16}, Name: {name}" );
 								}
@@ -330,12 +324,12 @@ namespace ReadyCheckHelper
 									ImGui.Text( "Party member returned as null pointer." );
 								}
 							}
-							for( int i = 0; i < 16; ++i )
+							for( var i = 0; i < 16; ++i )
 							{
 								var pGroupMember = FFXIVClientStructs.FFXIV.Client.Game.Group.GroupManager.Instance()->GetAllianceMemberByIndex( i );
-								if( (IntPtr)pGroupMember != IntPtr.Zero )
+								if( (nint)pGroupMember != nint.Zero )
 								{
-									string name = MemoryHelper.ReadSeStringNullTerminated( (IntPtr)pGroupMember->Name ).ToString();
+									var name = MemoryHelper.ReadSeStringNullTerminated( (nint)pGroupMember->Name ).ToString();
 									string classJobAbbr = JobDict.TryGetValue( pGroupMember->ClassJob, out classJobAbbr ) ? classJobAbbr : "ERR";
 									ImGui.Text( $"Job: {classJobAbbr}, OID: {pGroupMember->ObjectID:X8}, CID: {pGroupMember->ContentID:X16}, Name: {name}" );
 								}
@@ -346,14 +340,14 @@ namespace ReadyCheckHelper
 							}
 							ImGui.NextColumn();
 							ImGui.Text( "Cross-World Party Data:" );
-							for( int i = 0; i < crossWorldGroupCount; ++i )
+							for( var i = 0; i < crossWorldGroupCount; ++i )
 							{
-								for( int j = 0; j < FFXIVClientStructs.FFXIV.Client.UI.Info.InfoProxyCrossRealm.GetGroupMemberCount( i ); ++j )
+								for( var j = 0; j < FFXIVClientStructs.FFXIV.Client.UI.Info.InfoProxyCrossRealm.GetGroupMemberCount( i ); ++j )
 								{
 									var pGroupMember = FFXIVClientStructs.FFXIV.Client.UI.Info.InfoProxyCrossRealm.GetGroupMember( (uint)j, i );
-									if( (IntPtr)pGroupMember != IntPtr.Zero )
+									if( (nint)pGroupMember != nint.Zero )
 									{
-										string name = MemoryHelper.ReadSeStringNullTerminated( (IntPtr)pGroupMember->Name ).ToString();
+										var name = MemoryHelper.ReadSeStringNullTerminated( (nint)pGroupMember->Name ).ToString();
 										ImGui.Text( $"Group: {pGroupMember->GroupIndex}, OID: {pGroupMember->ObjectId:X8}, CID: {pGroupMember->ContentId:X16}, Name: {name}" );
 									}
 								}
@@ -362,82 +356,18 @@ namespace ReadyCheckHelper
 							ImGui.Text( $"AgentHUD Group Size: {pAgentHUD->RaidGroupSize}" );
 							ImGui.Text( $"AgentHUD Party Size: {pAgentHUD->PartyMemberCount}" );
 							ImGui.Text( "AgentHUD Party Members:" );
-							IntPtr pPartyData = new( pAgentHUD->PartyMemberList );
-							for( int i = 0; i < 8; ++i )
+							for( var i = 0; i < 8; ++i )
 							{
-								var partyMemberData = Marshal.PtrToStructure<PartyListCharInfo>( new( pPartyData.ToInt64() + ( i * Marshal.SizeOf<PartyListCharInfo>() ) ) );
-								ImGui.Text( $"Object Address: 0x{partyMemberData.ObjectAddress:X}\r\nName Address: 0x{partyMemberData.ObjectNameAddress:X}\r\nName: {partyMemberData.GetName()}\r\nCID: {partyMemberData.ContentID:X}\r\nOID: {partyMemberData.ObjectID:X}\r\nUnknown: {partyMemberData.Unknown:X}" );
+								var partyMemberData = pAgentHUD->PartyMemberListSpan[i];
+								ImGui.Text( $"Object Address: 0x{(nint) partyMemberData.Object:X}\r\nName Address: 0x{(nint) partyMemberData.Name:X}\r\nName: {MemoryHelper.ReadSeStringNullTerminated((nint) partyMemberData.Name)}\r\nCID: {partyMemberData.ContentId:X}\r\nOID: {partyMemberData.ObjectId:X}" );
 							}
 							ImGui.Text( "AgentHUD Raid Members:" );
-							for( int i = 0; i < 40; ++i )
+							for( var i = 0; i < 40; ++i )
 							{
 								ImGui.Text( $"{i:D2}: {pAgentHUD->RaidMemberIds[i]:X8}" );
 							}
 							ImGui.Columns();
 						}
-					}
-				}
-				finally
-				{
-					ImGui.PopFont();
-				}
-			}
-
-			//	We're done.
-			ImGui.End();
-		}
-
-		protected void DrawDebugRawWindow()
-		{
-			if( !DebugRawWindowVisible )
-			{
-				return;
-			}
-
-			//	Draw the window.
-			ImGui.SetNextWindowSize( new Vector2( 1340, 568 ) * ImGui.GetIO().FontGlobalScale, ImGuiCond.FirstUseEver );
-			ImGui.SetNextWindowSizeConstraints( new Vector2( 375, 340 ) * ImGui.GetIO().FontGlobalScale, new Vector2( float.MaxValue, float.MaxValue ) );
-			if( ImGui.Begin( Loc.Localize( "Window Title: Raw Ready Check Data", "Debug: Raw Ready Check Data" ) + "###Raw Ready Check Data", ref mDebugRawWindowVisible ) )
-			{
-				ImGui.PushFont( UiBuilder.MonoFont );
-				try
-				{
-					ImGui.Text( "Early object bytes:" );
-					if( MemoryHandler.DEBUG_GetRawReadyCheckObjectStuff( out byte[] readyCheckObjectBytes ) )
-					{
-						string str = "";
-						for( int i = 0; i < readyCheckObjectBytes.Length; ++i )
-						{
-							str += readyCheckObjectBytes[i].ToString( "X2" );
-							if( ( i + 1 ) % 8 == 0 )
-							{
-								ImGui.Text( str + " " );
-								str = "";
-								if( ( i + 1 ) % 64 > 0 ) ImGui.SameLine();
-							}
-						}
-					}
-					else
-					{
-						ImGui.Text( "Raw ready check object is unavailable." );
-					}
-
-					ImGui.Spacing();
-					ImGui.Spacing();
-					ImGui.Spacing();
-
-					ImGui.Text( "Ready check array:" );
-					if( MemoryHandler.DEBUG_GetRawReadyCheckData( out IntPtr[] rawData ) )
-					{
-						for( int i = 0; i < rawData.Length; ++i )
-						{
-							if( i % 8 > 0 ) ImGui.SameLine();
-							ImGui.Text( $"{rawData[i]:X16} " );
-						}
-					}
-					else
-					{
-						ImGui.Text( "Raw ready check data is unavailable, most likely due to not yet having located the ready check object." );
 					}
 				}
 				finally
@@ -513,37 +443,37 @@ namespace ReadyCheckHelper
 
 					if( mDEBUG_DrawPlaceholderData )
 					{
-						if( (IntPtr)pPartyList != IntPtr.Zero && pPartyList->IsVisible )
+						if( (nint)pPartyList != nint.Zero && pPartyList->IsVisible )
 						{
-							for( int i = 0; i < 8; ++i )
+							for( var i = 0; i < 8; ++i )
 							{
-								DrawOnPartyList( i, MemoryHandler.ReadyCheckStateEnum.Ready, pPartyList, ImGui.GetWindowDrawList() );
+								DrawOnPartyList( i, AgentReadyCheck.ReadyCheckStatus.Ready, pPartyList, ImGui.GetWindowDrawList() );
 							}
 						}
 
-						if( (IntPtr)pAlliance1List != IntPtr.Zero && pAlliance1List->IsVisible )
+						if( (nint)pAlliance1List != nint.Zero && pAlliance1List->IsVisible )
 						{
-							for( int i = 0; i < 8; ++i )
+							for( var i = 0; i < 8; ++i )
 							{
-								DrawOnAllianceList( i, MemoryHandler.ReadyCheckStateEnum.Ready, pAlliance1List, ImGui.GetWindowDrawList() );
+								DrawOnAllianceList( i, AgentReadyCheck.ReadyCheckStatus.Ready, pAlliance1List, ImGui.GetWindowDrawList() );
 							}
 						}
 
-						if( (IntPtr)pAlliance2List != IntPtr.Zero && pAlliance2List->IsVisible )
+						if( (nint)pAlliance2List != nint.Zero && pAlliance2List->IsVisible )
 						{
-							for( int i = 0; i < 8; ++i )
+							for( var i = 0; i < 8; ++i )
 							{
-								DrawOnAllianceList( i, MemoryHandler.ReadyCheckStateEnum.Ready, pAlliance2List, ImGui.GetWindowDrawList() );
+								DrawOnAllianceList( i, AgentReadyCheck.ReadyCheckStatus.Ready, pAlliance2List, ImGui.GetWindowDrawList() );
 							}
 						}
 
-						if( (IntPtr)pCrossWorldAllianceList != IntPtr.Zero && pCrossWorldAllianceList->IsVisible )
+						if( (nint)pCrossWorldAllianceList != nint.Zero && pCrossWorldAllianceList->IsVisible )
 						{
-							for( int j = 1; j < 6; ++j )
+							for( var j = 1; j < 6; ++j )
 							{
-								for( int i = 0; i < 8; ++i )
+								for( var i = 0; i < 8; ++i )
 								{
-									DrawOnCrossWorldAllianceList( j, i, MemoryHandler.ReadyCheckStateEnum.Ready, pCrossWorldAllianceList, ImGui.GetWindowDrawList() );
+									DrawOnCrossWorldAllianceList( j, i, AgentReadyCheck.ReadyCheckStatus.Ready, pCrossWorldAllianceList, ImGui.GetWindowDrawList() );
 								}
 							}
 						}
@@ -583,35 +513,35 @@ namespace ReadyCheckHelper
 			}
 		}
 
-		unsafe protected void DrawOnPartyList( int listIndex, MemoryHandler.ReadyCheckStateEnum readyCheckState, AtkUnitBase* pPartyList, ImDrawListPtr drawList )
+		unsafe protected void DrawOnPartyList( int listIndex, AgentReadyCheck.ReadyCheckStatus readyCheckState, AtkUnitBase* pPartyList, ImDrawListPtr drawList )
 		{
 			if( listIndex < 0 || listIndex > 7 ) return;
-			int partyMemberNodeIndex = 22 - listIndex;
-			int iconNodeIndex = 4;
+			var partyMemberNodeIndex = 22 - listIndex;
+			var iconNodeIndex = 4;
 			var partyAlign = pPartyList->UldManager.NodeList[3]->Y;
 
-			var pPartyMemberNode = pPartyList->UldManager.NodeListSize > partyMemberNodeIndex ? (AtkComponentNode*) pPartyList->UldManager.NodeList[partyMemberNodeIndex] : (AtkComponentNode*) IntPtr.Zero;
-			if( (IntPtr)pPartyMemberNode != IntPtr.Zero )
+			var pPartyMemberNode = pPartyList->UldManager.NodeListSize > partyMemberNodeIndex ? (AtkComponentNode*) pPartyList->UldManager.NodeList[partyMemberNodeIndex] : (AtkComponentNode*) nint.Zero;
+			if( (nint)pPartyMemberNode != nint.Zero )
 			{
-				var pIconNode = pPartyMemberNode->Component->UldManager.NodeListSize > iconNodeIndex ? pPartyMemberNode->Component->UldManager.NodeList[iconNodeIndex] : (AtkResNode*) IntPtr.Zero;
-				if( (IntPtr)pIconNode != IntPtr.Zero )
+				var pIconNode = pPartyMemberNode->Component->UldManager.NodeListSize > iconNodeIndex ? pPartyMemberNode->Component->UldManager.NodeList[iconNodeIndex] : (AtkResNode*) nint.Zero;
+				if( (nint)pIconNode != nint.Zero )
 				{
 					//	Note: sub-nodes don't scale, so we have to account for the addon's scale.
-					Vector2 iconOffset = ( new Vector2( -7, -5 ) + Configuration.PartyListIconOffset ) * pPartyList->Scale;
-					Vector2 iconSize = new Vector2( pIconNode->Width / 3, pIconNode->Height / 3 ) * Configuration.PartyListIconScale * pPartyList->Scale;
-					Vector2 iconPos = new Vector2(	pPartyList->X + pPartyMemberNode->AtkResNode.X * pPartyList->Scale + pIconNode->X * pPartyList->Scale + pIconNode->Width * pPartyList->Scale / 2,
+					var iconOffset = ( new Vector2( -7, -5 ) + Configuration.PartyListIconOffset ) * pPartyList->Scale;
+					var iconSize = new Vector2( pIconNode->Width / 3, pIconNode->Height / 3 ) * Configuration.PartyListIconScale * pPartyList->Scale;
+					var iconPos = new Vector2(	pPartyList->X + pPartyMemberNode->AtkResNode.X * pPartyList->Scale + pIconNode->X * pPartyList->Scale + pIconNode->Width * pPartyList->Scale / 2,
 													pPartyList->Y + partyAlign + pPartyMemberNode->AtkResNode.Y * pPartyList->Scale + pIconNode->Y * pPartyList->Scale + pIconNode->Height * pPartyList->Scale / 2 );
 					iconPos += iconOffset;
 
-					if( readyCheckState == MemoryHandler.ReadyCheckStateEnum.NotReady )
+					if( readyCheckState == AgentReadyCheck.ReadyCheckStatus.NotReady )
 					{
 						drawList.AddImage( mReadyCheckIconTexture.ImGuiHandle, iconPos, iconPos + iconSize, new Vector2( 0.5f, 0.0f ), new Vector2( 1.0f ) );
 					}
-					else if( readyCheckState == MemoryHandler.ReadyCheckStateEnum.Ready )
+					else if( readyCheckState == AgentReadyCheck.ReadyCheckStatus.Ready )
 					{
 						drawList.AddImage( mReadyCheckIconTexture.ImGuiHandle, iconPos, iconPos + iconSize, new Vector2( 0.0f, 0.0f ), new Vector2( 0.5f, 1.0f ) );
 					}
-					else if( readyCheckState == MemoryHandler.ReadyCheckStateEnum.CrossWorldMemberNotPresent )
+					else if( readyCheckState == AgentReadyCheck.ReadyCheckStatus.MemberNotPresent )
 					{
 						drawList.AddImage( mNotPresentIconTexture.ImGuiHandle, iconPos, iconPos + iconSize );
 					}
@@ -619,33 +549,33 @@ namespace ReadyCheckHelper
 			}
 		}
 
-		unsafe protected void DrawOnAllianceList( int listIndex, MemoryHandler.ReadyCheckStateEnum readyCheckState, AtkUnitBase* pAllianceList, ImDrawListPtr drawList )
+		unsafe protected void DrawOnAllianceList( int listIndex, AgentReadyCheck.ReadyCheckStatus readyCheckState, AtkUnitBase* pAllianceList, ImDrawListPtr drawList )
 		{
 			if( listIndex < 0 || listIndex > 7 ) return;
-			int partyMemberNodeIndex = 9 - listIndex;
-			int iconNodeIndex = 5;
+			var partyMemberNodeIndex = 9 - listIndex;
+			var iconNodeIndex = 5;
 
-			var pAllianceMemberNode = pAllianceList->UldManager.NodeListSize > partyMemberNodeIndex ? (AtkComponentNode*) pAllianceList->UldManager.NodeList[partyMemberNodeIndex] : (AtkComponentNode*) IntPtr.Zero;
-			if( (IntPtr)pAllianceMemberNode != IntPtr.Zero )
+			var pAllianceMemberNode = pAllianceList->UldManager.NodeListSize > partyMemberNodeIndex ? (AtkComponentNode*) pAllianceList->UldManager.NodeList[partyMemberNodeIndex] : (AtkComponentNode*) nint.Zero;
+			if( (nint)pAllianceMemberNode != nint.Zero )
 			{
-				var pIconNode = pAllianceMemberNode->Component->UldManager.NodeListSize > iconNodeIndex ? pAllianceMemberNode->Component->UldManager.NodeList[iconNodeIndex] : (AtkResNode*) IntPtr.Zero;
-				if( (IntPtr)pIconNode != IntPtr.Zero )
+				var pIconNode = pAllianceMemberNode->Component->UldManager.NodeListSize > iconNodeIndex ? pAllianceMemberNode->Component->UldManager.NodeList[iconNodeIndex] : (AtkResNode*) nint.Zero;
+				if( (nint)pIconNode != nint.Zero )
 				{
-					Vector2 iconOffset = ( new Vector2( 0, 0 ) + Configuration.AllianceListIconOffset ) * pAllianceList->Scale;
-					Vector2 iconSize = new Vector2( pIconNode->Width / 3, pIconNode->Height / 3 ) * Configuration.AllianceListIconScale * pAllianceList->Scale;
-					Vector2 iconPos = new Vector2(	pAllianceList->X + pAllianceMemberNode->AtkResNode.X * pAllianceList->Scale + pIconNode->X * pAllianceList->Scale + pIconNode->Width * pAllianceList->Scale / 2,
+					var iconOffset = ( new Vector2( 0, 0 ) + Configuration.AllianceListIconOffset ) * pAllianceList->Scale;
+					var iconSize = new Vector2( pIconNode->Width / 3, pIconNode->Height / 3 ) * Configuration.AllianceListIconScale * pAllianceList->Scale;
+					var iconPos = new Vector2(	pAllianceList->X + pAllianceMemberNode->AtkResNode.X * pAllianceList->Scale + pIconNode->X * pAllianceList->Scale + pIconNode->Width * pAllianceList->Scale / 2,
 													pAllianceList->Y + pAllianceMemberNode->AtkResNode.Y * pAllianceList->Scale + pIconNode->Y * pAllianceList->Scale + pIconNode->Height * pAllianceList->Scale / 2 );
 					iconPos += iconOffset;
 
-					if( readyCheckState == MemoryHandler.ReadyCheckStateEnum.NotReady )
+					if( readyCheckState == AgentReadyCheck.ReadyCheckStatus.NotReady )
 					{
 						drawList.AddImage( mReadyCheckIconTexture.ImGuiHandle, iconPos, iconPos + iconSize, new Vector2( 0.5f, 0.0f ), new Vector2( 1.0f ) );
 					}
-					else if( readyCheckState == MemoryHandler.ReadyCheckStateEnum.Ready )
+					else if( readyCheckState == AgentReadyCheck.ReadyCheckStatus.Ready )
 					{
 						drawList.AddImage( mReadyCheckIconTexture.ImGuiHandle, iconPos, iconPos + iconSize, new Vector2( 0.0f ), new Vector2( 0.5f, 1.0f ) );
 					}
-					else if( readyCheckState == MemoryHandler.ReadyCheckStateEnum.CrossWorldMemberNotPresent )
+					else if( readyCheckState == AgentReadyCheck.ReadyCheckStatus.MemberNotPresent )
 					{
 						drawList.AddImage( mNotPresentIconTexture.ImGuiHandle, iconPos, iconPos + iconSize );
 					}
@@ -653,39 +583,39 @@ namespace ReadyCheckHelper
 			}
 		}
 
-		unsafe protected void DrawOnCrossWorldAllianceList( int allianceIndex, int partyMemberIndex, MemoryHandler.ReadyCheckStateEnum readyCheckState, AtkUnitBase* pAllianceList, ImDrawListPtr drawList )
+		unsafe protected void DrawOnCrossWorldAllianceList( int allianceIndex, int partyMemberIndex, AgentReadyCheck.ReadyCheckStatus readyCheckState, AtkUnitBase* pAllianceList, ImDrawListPtr drawList )
 		{
 			if( allianceIndex < 1 || allianceIndex > 5 ) return;
 			if( partyMemberIndex < 0 || partyMemberIndex > 7 ) return;
-			int allianceNodeIndex = 8 - allianceIndex;
-			int partyMemberNodeIndex = 8 - partyMemberIndex;
-			int iconNodeIndex = 2;
+			var allianceNodeIndex = 8 - allianceIndex;
+			var partyMemberNodeIndex = 8 - partyMemberIndex;
+			var iconNodeIndex = 2;
 
 			//***** TODO: This *occasionally* crashes, and I don't understand why.  Best guess is that the node list is not populated all at once, but grows as the addon is created.*****
-			var pAllianceNode = pAllianceList->UldManager.NodeListSize > allianceNodeIndex ? (AtkComponentNode*) pAllianceList->UldManager.NodeList[allianceNodeIndex] : (AtkComponentNode*) IntPtr.Zero;
-			if( (IntPtr)pAllianceNode != IntPtr.Zero )
+			var pAllianceNode = pAllianceList->UldManager.NodeListSize > allianceNodeIndex ? (AtkComponentNode*) pAllianceList->UldManager.NodeList[allianceNodeIndex] : (AtkComponentNode*) nint.Zero;
+			if( (nint)pAllianceNode != nint.Zero )
 			{
-				var pPartyMemberNode = pAllianceNode->Component->UldManager.NodeListSize > partyMemberNodeIndex ? (AtkComponentNode*) pAllianceNode->Component->UldManager.NodeList[partyMemberNodeIndex] : (AtkComponentNode*) IntPtr.Zero;
-				if( (IntPtr)pPartyMemberNode != IntPtr.Zero )
+				var pPartyMemberNode = pAllianceNode->Component->UldManager.NodeListSize > partyMemberNodeIndex ? (AtkComponentNode*) pAllianceNode->Component->UldManager.NodeList[partyMemberNodeIndex] : (AtkComponentNode*) nint.Zero;
+				if( (nint)pPartyMemberNode != nint.Zero )
 				{
-					var pIconNode = pPartyMemberNode->Component->UldManager.NodeListSize > iconNodeIndex ? pPartyMemberNode->Component->UldManager.NodeList[iconNodeIndex] : (AtkResNode*) IntPtr.Zero;
-					if( (IntPtr)pIconNode != IntPtr.Zero )
+					var pIconNode = pPartyMemberNode->Component->UldManager.NodeListSize > iconNodeIndex ? pPartyMemberNode->Component->UldManager.NodeList[iconNodeIndex] : (AtkResNode*) nint.Zero;
+					if( (nint)pIconNode != nint.Zero )
 					{
-						Vector2 iconOffset = ( new Vector2( 0, 0 ) + Configuration.CrossWorldAllianceListIconOffset ) * pAllianceList->Scale;
-						Vector2 iconSize = new Vector2( pIconNode->Width / 2, pIconNode->Height / 2 ) * Configuration.CrossWorldAllianceListIconScale * pAllianceList->Scale;
-						Vector2 iconPos = new Vector2(	pAllianceList->X + pAllianceNode->AtkResNode.X * pAllianceList->Scale + pPartyMemberNode->AtkResNode.X * pAllianceList->Scale + pIconNode->X * pAllianceList->Scale + pIconNode->Width * pAllianceList->Scale / 2,
+						var iconOffset = ( new Vector2( 0, 0 ) + Configuration.CrossWorldAllianceListIconOffset ) * pAllianceList->Scale;
+						var iconSize = new Vector2( pIconNode->Width / 2, pIconNode->Height / 2 ) * Configuration.CrossWorldAllianceListIconScale * pAllianceList->Scale;
+						var iconPos = new Vector2(	pAllianceList->X + pAllianceNode->AtkResNode.X * pAllianceList->Scale + pPartyMemberNode->AtkResNode.X * pAllianceList->Scale + pIconNode->X * pAllianceList->Scale + pIconNode->Width * pAllianceList->Scale / 2,
 														pAllianceList->Y + pAllianceNode->AtkResNode.Y * pAllianceList->Scale + pPartyMemberNode->AtkResNode.Y * pAllianceList->Scale + pIconNode->Y * pAllianceList->Scale + pIconNode->Height * pAllianceList->Scale / 2 );
 						iconPos += iconOffset;
 
-						if( readyCheckState == MemoryHandler.ReadyCheckStateEnum.NotReady )
+						if( readyCheckState == AgentReadyCheck.ReadyCheckStatus.NotReady )
 						{
 							drawList.AddImage( mReadyCheckIconTexture.ImGuiHandle, iconPos, iconPos + iconSize, new Vector2( 0.5f, 0.0f ), new Vector2( 1.0f ) );
 						}
-						else if( readyCheckState == MemoryHandler.ReadyCheckStateEnum.Ready )
+						else if( readyCheckState == AgentReadyCheck.ReadyCheckStatus.Ready )
 						{
 							drawList.AddImage( mReadyCheckIconTexture.ImGuiHandle, iconPos, iconPos + iconSize, new Vector2( 0.0f, 0.0f ), new Vector2( 0.5f, 1.0f ) );
 						}
-						else if( readyCheckState == MemoryHandler.ReadyCheckStateEnum.CrossWorldMemberNotPresent )
+						else if( readyCheckState == AgentReadyCheck.ReadyCheckStatus.MemberNotPresent )
 						{
 							drawList.AddImage( mNotPresentIconTexture.ImGuiHandle, iconPos, iconPos + iconSize );
 						}

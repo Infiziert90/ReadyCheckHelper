@@ -1,10 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<TargetFramework>net7.0-windows</TargetFramework>
+		<TargetFramework>net8.0-windows</TargetFramework>
 		<Platforms>AnyCPU</Platforms>
-		<Version>1.0.4.4</Version>
+		<Version>1.0.5.0</Version>
 		<Authors>Infi, PunishedPineapple</Authors>
-		<Copyright>Copyright © Infi, PunishedPineapple 2021-2023</Copyright>
+		<Copyright>Copyright © Infi, PunishedPineapple 2021-2024</Copyright>
 		<PackageProjectUrl>https://github.com/Infiziert90/ReadyCheckHelper</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/Infiziert90/ReadyCheckHelper</RepositoryUrl>
 	</PropertyGroup>
