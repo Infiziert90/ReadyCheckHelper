@@ -44,12 +44,11 @@ namespace ReadyCheckHelper
         private Configuration Configuration { get; init; }
         private PluginUI PluginUi { get; init; }
 
-        private List<uint> mInstancedTerritories = new();
-        private List<CorrelatedReadyCheckEntry> mProcessedReadyCheckData;
-        private CancellationTokenSource mTimedOverlayCancellationSource;
+        private readonly List<uint> InstancedTerritories = [];
+        private List<CorrelatedReadyCheckEntry> ProcessedReadyCheckData;
+        private CancellationTokenSource TimedOverlayCancellationSource;
         public bool ReadyCheckActive { get; private set; }
 
-        //	Initialization
         public Plugin()
         {
             //	Configuration
@@ -81,7 +80,6 @@ namespace ReadyCheckHelper
             MemoryHandler.ReadyCheckCompleteEvent += OnReadyCheckCompleted;
         }
 
-        //	Cleanup
         public void Dispose()
         {
             MemoryHandler.ReadyCheckInitiatedEvent -= OnReadyCheckInitiated;
@@ -97,10 +95,10 @@ namespace ReadyCheckHelper
             PluginInterface.RemoveChatLinkHandler();
             CommandManager.RemoveHandler(TextCommandName);
             PluginUi?.Dispose();
-            mInstancedTerritories.Clear();
+            InstancedTerritories.Clear();
             LocalizationHelpers.Uninit();
-            mTimedOverlayCancellationSource?.Dispose();
-            mTimedOverlayCancellationSource = null;
+            TimedOverlayCancellationSource?.Dispose();
+            TimedOverlayCancellationSource = null;
         }
 
         private void OnLanguageChanged(string langCode)
@@ -110,32 +108,20 @@ namespace ReadyCheckHelper
             Log.Information("Trying to set up Loc for culture {0}", langCode);
 
             if (allowedLang.Contains(langCode))
-            {
-                Loc.Setup(File.ReadAllText(Path.Join(
-                    Path.Join(PluginInterface.AssemblyLocation.DirectoryName, "Resources\\Localization\\"),
-                    $"loc_{langCode}.json")));
-            }
+                Loc.Setup(File.ReadAllText(Path.Combine(PluginInterface.AssemblyLocation.DirectoryName!, @"Resources\Localization\", $"loc_{langCode}.json")));
             else
-            {
                 Loc.SetupWithFallbacks();
-            }
 
             //	Set up the command handler with the current language.
             if (CommandManager.Commands.ContainsKey(TextCommandName))
-            {
                 CommandManager.RemoveHandler(TextCommandName);
-            }
 
             CommandManager.AddHandler(TextCommandName, new CommandInfo(ProcessTextCommand)
             {
-                HelpMessage =
-                    string.Format(
-                        Loc.Localize("Plugin Text Command Description",
-                            "Use {0} to open the the configuration window."), "\"/pready config\"")
+                HelpMessage = string.Format(Loc.Localize("Plugin Text Command Description", "Use {0} to open the the configuration window."), "\"/pready config\"")
             });
         }
 
-        //	Text Commands
         private void ProcessTextCommand(string command, string args)
         {
             //*****TODO: Don't split, just substring off of the first space so that other stuff is preserved verbatim.
@@ -144,9 +130,7 @@ namespace ReadyCheckHelper
             var subCommandArgs = "";
             var argsArray = args.Split(' ');
             if (argsArray.Length > 0)
-            {
                 subCommand = argsArray[0];
-            }
 
             if (argsArray.Length > 1)
             {
@@ -167,23 +151,23 @@ namespace ReadyCheckHelper
                 //	For now just have no subcommands act like the config subcommand
                 PluginUi.SettingsWindowVisible = !PluginUi.SettingsWindowVisible;
             }
-            else if (subCommand.ToLower() == "config")
+            else if (subCommand.Equals("config", StringComparison.CurrentCultureIgnoreCase))
             {
                 PluginUi.SettingsWindowVisible = !PluginUi.SettingsWindowVisible;
             }
-            else if (subCommand.ToLower() == "debug")
+            else if (subCommand.Equals("debug", StringComparison.CurrentCultureIgnoreCase))
             {
                 PluginUi.DebugWindowVisible = !PluginUi.DebugWindowVisible;
             }
-            else if (subCommand.ToLower() == "results")
+            else if (subCommand.Equals("results", StringComparison.CurrentCultureIgnoreCase))
             {
                 PluginUi.ReadyCheckResultsWindowVisible = !PluginUi.ReadyCheckResultsWindowVisible;
             }
-            else if (subCommand.ToLower() == "clear")
+            else if (subCommand.Equals("clear", StringComparison.CurrentCultureIgnoreCase))
             {
                 PluginUi.InvalidateReadyCheck();
             }
-            else if (subCommand.ToLower() == "help" || subCommand.ToLower() == "?")
+            else if (subCommand.Equals("help", StringComparison.CurrentCultureIgnoreCase) || subCommand.Equals("?", StringComparison.CurrentCultureIgnoreCase))
             {
                 commandResponse = ProcessTextCommand_Help(subCommandArgs);
                 suppressResponse = false;
@@ -195,9 +179,7 @@ namespace ReadyCheckHelper
 
             //	Send any feedback to the user.
             if (commandResponse.Length > 0 && !suppressResponse)
-            {
                 Chat.Print(commandResponse);
-            }
         }
 
         private string ProcessTextCommand_Help(string args)
@@ -205,16 +187,10 @@ namespace ReadyCheckHelper
             return args.ToLower() switch
             {
                 "config" => Loc.Localize("Config Subcommand Help Message", "Opens the settings window."),
-                "results" => Loc.Localize("Results Subcommand Help Message",
-                    "Opens a window containing the results of the last ready check to occur."),
-                "clear" => Loc.Localize("Clear Subcommand Help Message",
-                    "Removes the most recent ready check icons from the party/alliance lists."),
-                "debug" => Loc.Localize("Debug Subcommand Help Message",
-                    "Opens a debugging window containing party and ready check object data."),
-                _ => string.Format(
-                    Loc.Localize("Basic Help Message",
-                        "This plugin works automatically; however, some text commands are supported.  Valid subcommands are {0}, {1}, and {2}.  Use \"{3} <subcommand>\" for more information on each subcommand."),
-                    "\"config\"", "\"results\"", "\"clear\"", "/pready help")
+                "results" => Loc.Localize("Results Subcommand Help Message", "Opens a window containing the results of the last ready check to occur."),
+                "clear" => Loc.Localize("Clear Subcommand Help Message", "Removes the most recent ready check icons from the party/alliance lists."),
+                "debug" => Loc.Localize("Debug Subcommand Help Message", "Opens a debugging window containing party and ready check object data."),
+                _ => string.Format(Loc.Localize("Basic Help Message", "This plugin works automatically; however, some text commands are supported.  Valid subcommands are {0}, {1}, and {2}.  Use \"{3} <subcommand>\" for more information on each subcommand."), "\"config\"", "\"results\"", "\"clear\"", "/pready help")
             };
         }
 
@@ -243,7 +219,7 @@ namespace ReadyCheckHelper
             //	Flag that we should start processing the data every frame.
             ReadyCheckActive = true;
             PluginUi.ShowReadyCheckOverlay();
-            mTimedOverlayCancellationSource?.Cancel();
+            TimedOverlayCancellationSource?.Cancel();
         }
 
         private void OnReadyCheckCompleted(object sender, EventArgs e)
@@ -261,31 +237,24 @@ namespace ReadyCheckHelper
 
             //	Construct a list of who's not ready.
             var notReadyList = new List<string>();
-
-            foreach (var person in mProcessedReadyCheckData)
-                if (person.ReadyState is AgentReadyCheck.ReadyCheckStatus.NotReady
-                    or AgentReadyCheck.ReadyCheckStatus.MemberNotPresent)
+            foreach (var person in ProcessedReadyCheckData)
+                if (person.ReadyState is AgentReadyCheck.ReadyCheckStatus.NotReady or AgentReadyCheck.ReadyCheckStatus.MemberNotPresent)
                     notReadyList.Add(person.Name);
 
             //	Print it to chat in the desired format.
             if (Configuration.ShowReadyCheckResultsInChat)
-            {
                 ListUnreadyPlayersInChat(notReadyList);
-            }
 
             //	Start a task to clean up the icons on the party chat after the configured amount of time.
             if (Configuration.ClearReadyCheckOverlayAfterTime)
             {
-                mTimedOverlayCancellationSource = new CancellationTokenSource();
+                TimedOverlayCancellationSource = new CancellationTokenSource();
                 Task.Run(async () =>
                 {
-                    var delaySec =
-                        Math.Max(0,
-                            Math.Min(Configuration.TimeUntilClearReadyCheckOverlay_Sec, 900)); //	Just to be safe...
-
+                    var delaySec = Math.Max(0, Math.Min(Configuration.TimeUntilClearReadyCheckOverlay_Sec, 900)); //	Just to be safe...
                     try
                     {
-                        await Task.Delay(delaySec * 1000, mTimedOverlayCancellationSource.Token);
+                        await Task.Delay(delaySec * 1000, TimedOverlayCancellationSource.Token);
                     }
                     catch (OperationCanceledException)
                     {
@@ -293,8 +262,8 @@ namespace ReadyCheckHelper
                     }
                     finally
                     {
-                        mTimedOverlayCancellationSource?.Dispose();
-                        mTimedOverlayCancellationSource = null;
+                        TimedOverlayCancellationSource?.Dispose();
+                        TimedOverlayCancellationSource = null;
                     }
 
                     if (!ReadyCheckActive)
@@ -305,135 +274,116 @@ namespace ReadyCheckHelper
 
         private unsafe void ProcessReadyCheckResults()
         {
-            if ((nint)InfoProxyCrossRealm.Instance() != nint.Zero)
-            {
-                if ((nint)GroupManager.Instance() != nint.Zero)
-                {
-                    //	We're only in a crossworld party if the cross realm proxy says we are; however, it can say we're cross-realm when
-                    //	we're in a regular party if we entered an instance as a cross-world party, so account for that too.
-                    if (InfoProxyCrossRealm.Instance()->IsCrossRealm > 0 &&
-                        GroupManager.Instance()->MemberCount < 1)
-                    {
-                        ProcessReadyCheckResults_CrossWorld();
-                    }
-                    else
-                    {
-                        ProcessReadyCheckResults_Regular();
-                    }
-                }
-            }
+            if ((nint)InfoProxyCrossRealm.Instance() == nint.Zero)
+                return;
+
+            if ((nint)GroupManager.Instance() == nint.Zero)
+                return;
+
+            //	We're only in a crossworld party if the cross realm proxy says we are; however, it can say we're cross-realm when
+            //	we're in a regular party if we entered an instance as a cross-world party, so account for that too.
+            if (InfoProxyCrossRealm.Instance()->IsCrossRealm > 0 && GroupManager.Instance()->MemberCount < 1)
+                ProcessReadyCheckResults_CrossWorld();
+            else
+                ProcessReadyCheckResults_Regular();
         }
 
         private unsafe void ProcessReadyCheckResults_Regular()
         {
-            if ((nint)GroupManager.Instance() != nint.Zero)
+            var groupManager = GroupManager.Instance();
+            try
             {
-                try
-                {
-                    var readyCheckData = AgentReadyCheck.Instance()->ReadyCheckEntriesSpan;
-                    var readyCheckProcessedList = new List<CorrelatedReadyCheckEntry>();
-                    var foundSelf = false;
+                var readyCheckData = AgentReadyCheck.Instance()->ReadyCheckEntriesSpan;
+                var readyCheckProcessedList = new List<CorrelatedReadyCheckEntry>();
+                var foundSelf = false;
 
-                    //	Grab all the alliance members here to make lookups easier since there's no function in client structs to get an alliance member by object ID.
-                    var allianceMemberDict = new Dictionary<uint, Tuple<ulong, string, byte, byte>>();
-                    for (var j = 0; j < 2; ++j)
+                //	Grab all the alliance members here to make lookups easier since there's no function in client structs to get an alliance member by object ID.
+                var allianceMemberDict = new Dictionary<uint, Tuple<ulong, string, byte, byte>>();
+                for (var j = 0; j < 2; ++j)
+                {
+                    for (var i = 0; i < 8; ++i)
                     {
-                        for (var i = 0; i < 8; ++i)
+                        var pGroupMember = groupManager->GetAllianceMemberByGroupAndIndex(j, i);
+                        if ((nint)pGroupMember != nint.Zero)
                         {
-                            var pGroupMember = GroupManager.Instance()->GetAllianceMemberByGroupAndIndex(j, i);
-                            if ((nint)pGroupMember != nint.Zero)
+                            var name = MemoryHelper.ReadSeStringNullTerminated((nint)pGroupMember->Name).ToString();
+                            allianceMemberDict.TryAdd(pGroupMember->ObjectID, Tuple.Create((ulong)pGroupMember->ContentID, name, (byte)(j + 1), (byte)i));
+                        }
+                    }
+                }
+
+                //	Correlate all the ready check entries with party/alliance members.
+                for (var i = 0; i < readyCheckData.Length; ++i)
+                {
+                    //	For our party, we need to do the correlation based on party data.
+                    if (i < groupManager->MemberCount)
+                    {
+                        //	For your immediate, local party, ready check data seems to be correlated with the party index, but with you always first in the list (anyone with an index below yours will be offset by one).
+                        var pFoundPartyMember = groupManager->GetPartyMemberByIndex(i);
+                        if ((nint)pFoundPartyMember != nint.Zero)
+                        {
+                            var name = MemoryHelper.ReadSeStringNullTerminated((nint)pFoundPartyMember->Name).ToString();
+
+                            //	If it's us, we need to use the first entry in the ready check data.
+                            if (pFoundPartyMember->ObjectID == ClientState.LocalPlayer?.ObjectId)
                             {
-                                var name = MemoryHelper.ReadSeStringNullTerminated((nint)pGroupMember->Name).ToString();
-                                allianceMemberDict.TryAdd(pGroupMember->ObjectID,
-                                    Tuple.Create((ulong)pGroupMember->ContentID, name, (byte)(j + 1), (byte)i));
+                                readyCheckProcessedList.Insert(0, new CorrelatedReadyCheckEntry(name, (ulong)pFoundPartyMember->ContentID, pFoundPartyMember->ObjectID, readyCheckData[0].Status, 0, 0));
+                                foundSelf = true;
+                            }
+                            //	If it's before we've found ourselves, look ahead by one in the ready check data.
+                            else if (!foundSelf)
+                            {
+                                readyCheckProcessedList.Add(new CorrelatedReadyCheckEntry(name, (ulong)pFoundPartyMember->ContentID, pFoundPartyMember->ObjectID, readyCheckData[i + 1].Status, 0, (byte)(i + 1)));
+                            }
+                            //	Otherwise, use the same index in the ready check data.
+                            else
+                            {
+                                readyCheckProcessedList.Add(new CorrelatedReadyCheckEntry(name, (ulong)pFoundPartyMember->ContentID, pFoundPartyMember->ObjectID, readyCheckData[i].Status, 0, (byte)i));
                             }
                         }
                     }
-
-                    //	Correlate all the ready check entries with party/alliance members.
-                    for (var i = 0; i < readyCheckData.Length; ++i)
+                    //	For the alliance members, there should be object IDs to make matching easy.
+                    else if (readyCheckData[i].ContentID > 0 && (readyCheckData[i].ContentID & 0xFFFFFFFF) != 0xE0000000)
                     {
-                        //	For our party, we need to do the correlation based on party data.
-                        if (i < GroupManager.Instance()->MemberCount)
-                        {
-                            //	For your immediate, local party, ready check data seems to be correlated with the party index, but with you always first in the list (anyone with an index below yours will be offset by one).
-                            var pFoundPartyMember = GroupManager.Instance()->GetPartyMemberByIndex(i);
-                            if ((nint)pFoundPartyMember != nint.Zero)
-                            {
-                                var name = MemoryHelper.ReadSeStringNullTerminated((nint)pFoundPartyMember->Name).ToString();
-
-                                //	If it's us, we need to use the first entry in the ready check data.
-                                if (pFoundPartyMember->ObjectID == ClientState.LocalPlayer?.ObjectId)
-                                {
-                                    readyCheckProcessedList.Insert(0, new CorrelatedReadyCheckEntry(name, (ulong)pFoundPartyMember->ContentID, pFoundPartyMember->ObjectID, readyCheckData[0].Status, 0, 0));
-                                    foundSelf = true;
-                                }
-                                //	If it's before we've found ourselves, look ahead by one in the ready check data.
-                                else if (!foundSelf)
-                                {
-                                    readyCheckProcessedList.Add(new CorrelatedReadyCheckEntry(name, (ulong)pFoundPartyMember->ContentID, pFoundPartyMember->ObjectID, readyCheckData[i + 1].Status, 0, (byte)(i + 1)));
-                                }
-                                //	Otherwise, use the same index in the ready check data.
-                                else
-                                {
-                                    readyCheckProcessedList.Add(new CorrelatedReadyCheckEntry(name, (ulong)pFoundPartyMember->ContentID, pFoundPartyMember->ObjectID, readyCheckData[i].Status, 0, (byte)i));
-                                }
-                            }
-                        }
-                        //	For the alliance members, there should be object IDs to make matching easy.
-                        else if (readyCheckData[i].ContentID > 0 &&
-                                 (readyCheckData[i].ContentID & 0xFFFFFFFF) != 0xE0000000)
-                        {
-                            Tuple<ulong, string, byte, byte> temp = null;
-                            if (allianceMemberDict.TryGetValue((uint)readyCheckData[i].ContentID, out temp))
-                            {
-                                readyCheckProcessedList.Add(new CorrelatedReadyCheckEntry(temp.Item2, temp.Item1,
-                                    (uint)readyCheckData[i].ContentID, readyCheckData[i].Status, temp.Item3,
-                                    temp.Item4));
-                            }
-                        }
-                        //***** TODO: How do things work if you're a non-cross-world alliance without people in the same zone? *****
-                        //This isn't possible through PF; is it still possible in the open world?
+                        if (allianceMemberDict.TryGetValue((uint)readyCheckData[i].ContentID, out var temp))
+                            readyCheckProcessedList.Add(new CorrelatedReadyCheckEntry(temp.Item2, temp.Item1, (uint)readyCheckData[i].ContentID, readyCheckData[i].Status, temp.Item3, temp.Item4));
                     }
+                    //***** TODO: How do things work if you're a non-cross-world alliance without people in the same zone? *****
+                    //This isn't possible through PF; is it still possible in the open world?
+                }
 
-                    //	Assign to the persistent list if we've gotten through this without any problems.
-                    mProcessedReadyCheckData = readyCheckProcessedList;
-                }
-                catch (Exception e)
-                {
-                    Log.Debug($"Exception caught in \"ProcessReadyCheckResults_Regular()\": {e}.");
-                }
+                //	Assign to the persistent list if we've gotten through this without any problems.
+                ProcessedReadyCheckData = readyCheckProcessedList;
+            }
+            catch (Exception e)
+            {
+                Log.Debug($"Exception caught in \"ProcessReadyCheckResults_Regular()\": {e}.");
             }
         }
 
         private unsafe void ProcessReadyCheckResults_CrossWorld()
         {
-            if ((nint)InfoProxyCrossRealm.Instance() != nint.Zero)
+            try
             {
-                try
-                {
-                    var readyCheckData = AgentReadyCheck.Instance()->ReadyCheckEntriesSpan;
-                    var readyCheckProcessedList = new List<CorrelatedReadyCheckEntry>();
+                var readyCheckData = AgentReadyCheck.Instance()->ReadyCheckEntriesSpan;
+                var readyCheckProcessedList = new List<CorrelatedReadyCheckEntry>();
 
-                    foreach (var readyCheckEntry in readyCheckData)
+                foreach (var readyCheckEntry in readyCheckData)
+                {
+                    var pFoundPartyMember = InfoProxyCrossRealm.GetMemberByContentId((ulong)readyCheckEntry.ContentID);
+                    if ((nint)pFoundPartyMember != nint.Zero)
                     {
-                        var pFoundPartyMember =
-                            InfoProxyCrossRealm.GetMemberByContentId((ulong)readyCheckEntry.ContentID);
-                        if ((nint)pFoundPartyMember != nint.Zero)
-                        {
-                            var name = MemoryHelper.ReadSeStringNullTerminated((nint)pFoundPartyMember->Name)
-                                .ToString();
-                            readyCheckProcessedList.Add(new CorrelatedReadyCheckEntry(name, pFoundPartyMember->ContentId, pFoundPartyMember->ObjectId, readyCheckEntry.Status, pFoundPartyMember->GroupIndex, pFoundPartyMember->MemberIndex));
-                        }
+                        var name = MemoryHelper.ReadSeStringNullTerminated((nint)pFoundPartyMember->Name).ToString();
+                        readyCheckProcessedList.Add(new CorrelatedReadyCheckEntry(name, pFoundPartyMember->ContentId, pFoundPartyMember->ObjectId, readyCheckEntry.Status, pFoundPartyMember->GroupIndex, pFoundPartyMember->MemberIndex));
                     }
+                }
 
-                    //	Assign to the persistent list if we've gotten through this without any problems.
-                    mProcessedReadyCheckData = readyCheckProcessedList;
-                }
-                catch (Exception e)
-                {
-                    Log.Debug($"Exception caught in \"ProcessReadyCheckResults_CrossWorld()\": {e}.");
-                }
+                //	Assign to the persistent list if we've gotten through this without any problems.
+                ProcessedReadyCheckData = readyCheckProcessedList;
+            }
+            catch (Exception e)
+            {
+                Log.Debug($"Exception caught in \"ProcessReadyCheckResults_CrossWorld()\": {e}.");
             }
         }
 
@@ -465,8 +415,7 @@ namespace ReadyCheckHelper
                 //	If we don't delay the actual printing to chat, sometimes it comes out before the system message in the chat log.  I don't understand why it's an issue, but this is an easy kludge to make it work right consistently.
                 Task.Run(async () =>
                 {
-                    await Task.Delay(
-                        500); //***** TODO: Make this value configurable, or fix the underlying issue. *****
+                    await Task.Delay(500); //***** TODO: Make this value configurable, or fix the underlying issue. *****
                     var chatEntry = new XivChatEntry
                     {
                         Type = Configuration.ChatChannelToUseForNotReadyMessage,
@@ -504,42 +453,37 @@ namespace ReadyCheckHelper
                 if (value)
                 {
                     if (Configuration.ClearReadyCheckOverlayInCombat)
-                    {
                         PluginUi.InvalidateReadyCheck();
-                    }
-                    else if (Configuration.ClearReadyCheckOverlayInCombatInInstancedCombat &&
-                             mInstancedTerritories.Contains(ClientState.TerritoryType))
-                    {
+                    else if (Configuration.ClearReadyCheckOverlayInCombatInInstancedCombat && InstancedTerritories.Contains(ClientState.TerritoryType))
                         PluginUi.InvalidateReadyCheck();
-                    }
                 }
             }
         }
 
-        private void OnTerritoryChanged(ushort ID)
+        private void OnTerritoryChanged(ushort id)
         {
-            if (Configuration.ClearReadyCheckOverlayEnteringInstance && mInstancedTerritories.Contains(ID))
+            if (Configuration.ClearReadyCheckOverlayEnteringInstance && InstancedTerritories.Contains(id))
                 PluginUi.InvalidateReadyCheck();
         }
 
         private void OnLogout()
         {
             ReadyCheckActive = false;
-            mTimedOverlayCancellationSource?.Cancel();
+            TimedOverlayCancellationSource?.Cancel();
             PluginUi.InvalidateReadyCheck();
-            mProcessedReadyCheckData = null;
+            ProcessedReadyCheckData = null;
         }
 
         internal List<CorrelatedReadyCheckEntry> GetProcessedReadyCheckData()
         {
-            return mProcessedReadyCheckData != null ? [..mProcessedReadyCheckData] : null;
+            return ProcessedReadyCheckData != null ? [..ProcessedReadyCheckData] : null;
         }
 
         private void PopulateInstancedTerritoriesList()
         {
             var contentFinderSheet = DataManager.GetExcelSheet<ContentFinderCondition>()!;
             foreach (var zone in contentFinderSheet)
-                mInstancedTerritories.Add(zone.TerritoryType.Row);
+                InstancedTerritories.Add(zone.TerritoryType.Row);
         }
     }
 }
