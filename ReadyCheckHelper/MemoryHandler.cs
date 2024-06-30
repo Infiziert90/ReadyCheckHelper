@@ -8,17 +8,21 @@ namespace ReadyCheckHelper
 {
     public static class MemoryHandler
     {
-        public static void Init()
+        //	Events
+        public static event EventHandler ReadyCheckInitiatedEvent;
+        public static event EventHandler ReadyCheckCompleteEvent;
+
+        private static Hook<AgentReadyCheck.Delegates.InitiateReadyCheck> MReadyCheckInitiatedHook;
+        private static Hook<AgentReadyCheck.Delegates.EndReadyCheck> MReadyCheckEndHook;
+
+        public static unsafe void Init()
         {
             try
             {
-                // TODO: Replace with CS version after https://github.com/aers/FFXIVClientStructs/pull/882 got merged
-                MfpOnReadyCheckInitiated = Plugin.SigScanner.ScanText("40 ?? 48 83 ?? ?? 48 8B ?? E8 ?? ?? ?? ?? 48 ?? ?? ?? 33 C0 ?? 89");
-                MReadyCheckInitiatedHook = Plugin.Hook.HookFromAddress<ReadyCheckFuncDelegate>(MfpOnReadyCheckInitiated, ReadyCheckInitiatedDetour);
+                MReadyCheckInitiatedHook = Plugin.Hook.HookFromAddress<AgentReadyCheck.Delegates.InitiateReadyCheck>(AgentReadyCheck.MemberFunctionPointers.InitiateReadyCheck, ReadyCheckInitiatedDetour);
                 MReadyCheckInitiatedHook.Enable();
 
-                MfpOnReadyCheckEnd = Plugin.SigScanner.ScanText("40 ?? 53 48 ?? ?? ?? ?? 48 81 ?? ?? ?? ?? ?? 48 8B ?? ?? ?? ?? ?? 48 33 ?? ?? 89 ?? ?? ?? 83 ?? ?? ?? 48 8B ?? 75 ?? 48");
-                MReadyCheckEndHook = Plugin.Hook.HookFromAddress<ReadyCheckFuncDelegate>(MfpOnReadyCheckEnd, ReadyCheckEndDetour);
+                MReadyCheckEndHook = Plugin.Hook.HookFromAddress<AgentReadyCheck.Delegates.EndReadyCheck>(AgentReadyCheck.MemberFunctionPointers.EndReadyCheck, ReadyCheckEndDetour);
                 MReadyCheckEndHook.Enable();
             }
             catch (Exception ex)
@@ -31,41 +35,25 @@ namespace ReadyCheckHelper
         {
             MReadyCheckInitiatedHook?.Dispose();
             MReadyCheckEndHook?.Dispose();
-
-            MpReadyCheckObject = nint.Zero;
         }
 
-        private static void ReadyCheckInitiatedDetour(nint ptr)
+        private static unsafe void ReadyCheckInitiatedDetour(AgentReadyCheck* ptr)
         {
             MReadyCheckInitiatedHook.Original(ptr);
-            MpReadyCheckObject = ptr;
             ReadyCheckInitiatedEvent?.Invoke(null, EventArgs.Empty);
         }
 
-        private static void ReadyCheckEndDetour(nint ptr)
+        private static unsafe void ReadyCheckEndDetour(AgentReadyCheck* ptr)
         {
             MReadyCheckEndHook.Original(ptr);
-
-            //	Do this for now because we don't get the ready check begin function called if we don't initiate ready check ourselves.
-            MpReadyCheckObject = ptr;
 
             //	Update our copy of the data one last time.
             ReadyCheckCompleteEvent?.Invoke(null, EventArgs.Empty);
         }
 
-        public static nint DEBUG_GetReadyCheckObjectAddress()
+        internal static unsafe PartyListLayoutResult? GetHUDIndicesForChar(ulong ContentId, uint EntityId)
         {
-            return MpReadyCheckObject;
-        }
-
-        public static void DEBUG_SetReadyCheckObjectAddress(nint ptr)
-        {
-            MpReadyCheckObject = ptr;
-        }
-
-        internal static unsafe PartyListLayoutResult? GetHUDIndicesForChar(ulong contentID, uint objectID)
-        {
-            if (contentID == 0 && objectID is 0 or 0xE0000000)
+            if (ContentId == 0 && EntityId is 0 or 0xE0000000)
                 return null;
 
             var infoProxyCrossRealm = InfoProxyCrossRealm.Instance();
@@ -76,50 +64,34 @@ namespace ReadyCheckHelper
 
             //	We're only in a crossworld party if the cross realm proxy says we are; however, it can say we're cross-realm when
             //	we're in a regular party if we entered an instance as a cross-world party, so account for that too.
-            if (groupManager->MemberCount > 0)
+            if (groupManager->MainGroup.MemberCount > 0)
             {
                 for (var i = 0; i < 8; ++i)
                 {
-                    var charData = groupManager->PartyMembersSpan[i];
-                    if (contentID > 0 && contentID == (ulong) charData.ContentID)
+                    var charData = groupManager->MainGroup.PartyMembers[i];
+                    if (ContentId > 0 && ContentId == (ulong) charData.ContentId)
                         return new PartyListLayoutResult(false, 0, i);
 
-                    if (objectID > 0 && objectID != 0xE0000000 && objectID == charData.ObjectID)
+                    if (EntityId > 0 && EntityId != 0xE0000000 && EntityId == charData.EntityId)
                         return new PartyListLayoutResult(false, 0, i);
                 }
 
                 for (var i = 0; i < 40; ++i)
                 {
-                    if (objectID > 0 && objectID != 0xE0000000 && objectID == agentHud->RaidMemberIds[i])
+                    if (EntityId > 0 && EntityId != 0xE0000000 && EntityId == agentHud->RaidMemberIds[i])
                         return new PartyListLayoutResult(false, i / 8 + 1, i % 8);
                 }
             }
             else if (infoProxyCrossRealm->IsCrossRealm > 0)
             {
-                var pGroupMember = InfoProxyCrossRealm.GetMemberByContentId(contentID);
-                if (pGroupMember == null || contentID == 0)
+                var pGroupMember = InfoProxyCrossRealm.GetMemberByContentId(ContentId);
+                if (pGroupMember == null || ContentId == 0)
                     return null;
                 return new PartyListLayoutResult(true, pGroupMember->GroupIndex, pGroupMember->MemberIndex);
             }
 
             return null;
         }
-
-        //	Misc.
-        private static nint MpReadyCheckObject;
-
-        //	Delegates
-        private delegate void ReadyCheckFuncDelegate(nint ptr);
-
-        private static nint MfpOnReadyCheckInitiated = nint.Zero;
-        private static Hook<ReadyCheckFuncDelegate> MReadyCheckInitiatedHook;
-
-        private static nint MfpOnReadyCheckEnd = nint.Zero;
-        private static Hook<ReadyCheckFuncDelegate> MReadyCheckEndHook;
-
-        //	Events
-        public static event EventHandler ReadyCheckInitiatedEvent;
-        public static event EventHandler ReadyCheckCompleteEvent;
     }
 
     internal struct PartyListLayoutResult

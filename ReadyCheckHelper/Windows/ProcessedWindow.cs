@@ -36,7 +36,7 @@ public class ProcessedWindow : Window, IDisposable
         var list = Plugin.GetProcessedReadyCheckData();
         if (list != null)
             foreach (var player in list)
-                ImGui.Text($"OID: {player.ObjectID:X8}, CID: {player.ContentID:X16}, Group: {player.GroupIndex}, Index: {player.MemberIndex}, State: {(byte)player.ReadyState}, Name: {player.Name}");
+                ImGui.Text($"OID: {player.EntityId:X8}, CID: {player.ContentId:X16}, Group: {player.GroupIndex}, Index: {player.MemberIndex}, State: {(byte)player.ReadyState}, Name: {player.Name}");
 
         if (ImGui.Button($"{Loc.Localize("Button: Close", "Close")}###Close"))
             IsOpen = false;

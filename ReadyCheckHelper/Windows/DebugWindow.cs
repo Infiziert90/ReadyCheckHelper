@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using CheapLoc;
+using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Interface;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
@@ -72,7 +73,7 @@ public class DebugWindow : Window, IDisposable
         ImGui.Columns(5);
         ImGui.Text("General Info:");
 
-        ImGui.Text($"Number of Party Members: {groupManager->MemberCount}");
+        ImGui.Text($"Number of Party Members: {groupManager->MainGroup.MemberCount}");
         ImGui.Text($"Is Cross-World: {infoproxy->IsCrossRealm}");
 
         var crossWorldGroupCount = infoproxy->GroupCount;
@@ -84,7 +85,6 @@ public class DebugWindow : Window, IDisposable
         ImGui.Spacing();
         ImGui.Spacing();
         ImGui.Spacing();
-        ImGui.Text($"Ready Check Object Address: 0x{MemoryHandler.DEBUG_GetReadyCheckObjectAddress():X}");
         ImGui.Text($"Hud Agent Address: 0x{new nint(pAgentHUD):X}");
 
         var isOpen = Plugin.ProcessedWindow.IsOpen;
@@ -109,21 +109,21 @@ public class DebugWindow : Window, IDisposable
 
         ImGui.NextColumn();
         ImGui.Text("Ready Check Data:");
-        var readyCheckdata = AgentReadyCheck.Instance()->ReadyCheckEntriesSpan;
+        var readyCheckdata = AgentReadyCheck.Instance()->ReadyCheckEntries;
         for (var i = 0; i < readyCheckdata.Length; ++i)
-            ImGui.Text($"ID: {readyCheckdata[i].ContentID:X16}, State: {readyCheckdata[i].Status}");
+            ImGui.Text($"ID: {readyCheckdata[i].ContentId:X16}, State: {readyCheckdata[i].Status}");
 
         ImGui.NextColumn();
 
         ImGui.Text("Party Data:");
         for (var i = 0; i < 8; ++i)
         {
-            var pGroupMember = groupManager->GetPartyMemberByIndex(i);
+            var pGroupMember = groupManager->MainGroup.GetPartyMemberByIndex(i);
             if ((nint)pGroupMember != nint.Zero)
             {
-                var name = MemoryHelper.ReadSeStringNullTerminated((nint)pGroupMember->Name).ToString();
+                var name = SeString.Parse(pGroupMember->Name).ToString();
                 string classJobAbbr = JobDict.TryGetValue(pGroupMember->ClassJob, out classJobAbbr) ? classJobAbbr : "ERR";
-                ImGui.Text($"Job: {classJobAbbr}, OID: {pGroupMember->ObjectID:X8}, CID: {pGroupMember->ContentID:X16}, Name: {name}");
+                ImGui.Text($"Job: {classJobAbbr}, OID: {pGroupMember->EntityId:X8}, CID: {pGroupMember->ContentId:X16}, Name: {name}");
             }
             else
             {
@@ -133,14 +133,14 @@ public class DebugWindow : Window, IDisposable
 
         for (var i = 0; i < 16; ++i)
         {
-            var pGroupMember = groupManager->GetAllianceMemberByIndex(i);
+            var pGroupMember = groupManager->MainGroup.GetAllianceMemberByIndex(i);
             if ((nint)pGroupMember != nint.Zero)
             {
-                var name = MemoryHelper.ReadSeStringNullTerminated((nint)pGroupMember->Name).ToString();
+                var name = SeString.Parse(pGroupMember->Name).ToString();
                 string classJobAbbr = JobDict.TryGetValue(pGroupMember->ClassJob, out classJobAbbr)
                     ? classJobAbbr
                     : "ERR";
-                ImGui.Text($"Job: {classJobAbbr}, OID: {pGroupMember->ObjectID:X8}, CID: {pGroupMember->ContentID:X16}, Name: {name}");
+                ImGui.Text($"Job: {classJobAbbr}, OID: {pGroupMember->EntityId:X8}, CID: {pGroupMember->ContentId:X16}, Name: {name}");
             }
             else
             {
@@ -157,8 +157,8 @@ public class DebugWindow : Window, IDisposable
                 var pGroupMember = InfoProxyCrossRealm.GetGroupMember((uint)j, i);
                 if ((nint)pGroupMember != nint.Zero)
                 {
-                    var name = MemoryHelper.ReadSeStringNullTerminated((nint)pGroupMember->Name).ToString();
-                    ImGui.Text($"Group: {pGroupMember->GroupIndex}, OID: {pGroupMember->ObjectId:X8}, CID: {pGroupMember->ContentId:X16}, Name: {name}");
+                    var name = SeString.Parse(pGroupMember->Name).ToString();
+                    ImGui.Text($"Group: {pGroupMember->GroupIndex}, OID: {pGroupMember->EntityId:X8}, CID: {pGroupMember->ContentId:X16}, Name: {name}");
                 }
             }
         }
@@ -169,8 +169,8 @@ public class DebugWindow : Window, IDisposable
         ImGui.Text("AgentHUD Party Members:");
         for (var i = 0; i < 8; ++i)
         {
-            var partyMemberData = pAgentHUD->PartyMemberListSpan[i];
-            ImGui.Text($"Object Address: 0x{(nint)partyMemberData.Object:X}\r\nName Address: 0x{(nint)partyMemberData.Name:X}\r\nName: {MemoryHelper.ReadSeStringNullTerminated((nint)partyMemberData.Name)}\r\nCID: {partyMemberData.ContentId:X}\r\nOID: {partyMemberData.ObjectId:X}");
+            var partyMemberData = pAgentHUD->PartyMembers[i];
+            ImGui.Text($"Object Address: 0x{(nint)partyMemberData.Object:X}\r\nName Address: 0x{(nint)partyMemberData.Name:X}\r\nName: {MemoryHelper.ReadSeStringNullTerminated((nint)partyMemberData.Name)}\r\nCID: {partyMemberData.ContentId:X}\r\nOID: {partyMemberData.EntityId:X}");
         }
 
         ImGui.Text("AgentHUD Raid Members:");

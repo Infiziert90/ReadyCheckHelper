@@ -2,11 +2,12 @@
 using System.Collections.Generic;
 using System.Numerics;
 using CheapLoc;
-using Dalamud.Interface.Internal;
+using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using ImGuiNET;
+using Lumina.Data.Files;
 
 namespace ReadyCheckHelper.Windows;
 
@@ -21,9 +22,9 @@ public class ResultWindow : Window, IDisposable
     public ResultWindow(Plugin plugin) : base($"{Loc.Localize("Window Title: Ready Check Results", "Latest Ready Check Results")}###Latest Ready Check Results")
     {
         Plugin = plugin;
-        ReadyCheckIconTexture = Plugin.Texture.GetTextureFromGame("ui/uld/ReadyCheck_hr1.tex") ?? Plugin.Texture.GetTextureFromGame("ui/uld/ReadyCheck.tex");
-        UnknownStatusIconTexture = Plugin.Texture.GetIcon(60072);
-        NotPresentIconTexture = Plugin.Texture.GetIcon(61504);
+        ReadyCheckIconTexture = Plugin.Texture.CreateFromTexFile(Plugin.DataManager.GetFile<TexFile>("ui/uld/ReadyCheck_hr1.tex")!);
+        UnknownStatusIconTexture = Plugin.Texture.GetFromGameIcon(60072).RentAsync().Result;
+        NotPresentIconTexture = Plugin.Texture.GetFromGameIcon(61504).RentAsync().Result;
 
         SizeConstraints = new WindowSizeConstraints()
         {
@@ -69,13 +70,13 @@ public class ResultWindow : Window, IDisposable
                         {
                             switch (tableList[j][i].ReadyState)
                             {
-                                case AgentReadyCheck.ReadyCheckStatus.Ready:
+                                case ReadyCheckStatus.Ready:
                                     ImGui.Image(ReadyCheckIconTexture.ImGuiHandle, new Vector2(24), new Vector2(0.0f), new Vector2(0.5f, 1.0f));
                                     break;
-                                case AgentReadyCheck.ReadyCheckStatus.NotReady:
+                                case ReadyCheckStatus.NotReady:
                                     ImGui.Image(ReadyCheckIconTexture.ImGuiHandle, new Vector2(24), new Vector2(0.5f, 0.0f), new Vector2(1.0f));
                                     break;
-                                case AgentReadyCheck.ReadyCheckStatus.MemberNotPresent:
+                                case ReadyCheckStatus.MemberNotPresent:
                                     ImGui.Image(NotPresentIconTexture.ImGuiHandle, new Vector2(24));
                                     break;
                                 default:

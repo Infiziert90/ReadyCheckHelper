@@ -1,11 +1,12 @@
 ﻿using System;
 using System.Numerics;
-using Dalamud.Interface.Internal;
+using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using ImGuiNET;
+using Lumina.Data.Files;
 
 namespace ReadyCheckHelper.Windows;
 
@@ -20,9 +21,8 @@ public class PartyListOverlay : Window, IDisposable
     public PartyListOverlay(Plugin plugin) : base("##ReadyCheckOverlayWindow")
     {
         Plugin = plugin;
-        ReadyCheckIconTexture = Plugin.Texture.GetTextureFromGame("ui/uld/ReadyCheck_hr1.tex") ??
-                                Plugin.Texture.GetTextureFromGame("ui/uld/ReadyCheck.tex");
-        NotPresentIconTexture = Plugin.Texture.GetIcon(61504);
+        ReadyCheckIconTexture = Plugin.Texture.CreateFromTexFile(Plugin.DataManager.GetFile<TexFile>("ui/uld/ReadyCheck_hr1.tex")!);
+        NotPresentIconTexture = Plugin.Texture.GetFromGameIcon(61504).RentAsync().Result;
 
         SizeConstraints = new WindowSizeConstraints()
         {
@@ -66,26 +66,26 @@ public class PartyListOverlay : Window, IDisposable
             if ((nint)pPartyList != nint.Zero && pPartyList->IsVisible)
             {
                 for (var i = 0; i < 8; ++i)
-                    DrawOnPartyList(i, AgentReadyCheck.ReadyCheckStatus.Ready, pPartyList, drawList);
+                    DrawOnPartyList(i, ReadyCheckStatus.Ready, pPartyList, drawList);
             }
 
             if ((nint)pAlliance1List != nint.Zero && pAlliance1List->IsVisible)
             {
                 for (var i = 0; i < 8; ++i)
-                    DrawOnAllianceList(i, AgentReadyCheck.ReadyCheckStatus.Ready, pAlliance1List, drawList);
+                    DrawOnAllianceList(i, ReadyCheckStatus.Ready, pAlliance1List, drawList);
             }
 
             if ((nint)pAlliance2List != nint.Zero && pAlliance2List->IsVisible)
             {
                 for (var i = 0; i < 8; ++i)
-                    DrawOnAllianceList(i, AgentReadyCheck.ReadyCheckStatus.Ready, pAlliance2List, drawList);
+                    DrawOnAllianceList(i, ReadyCheckStatus.Ready, pAlliance2List, drawList);
             }
 
             if ((nint)pCrossWorldAllianceList != nint.Zero && pCrossWorldAllianceList->IsVisible)
             {
                 for (var j = 1; j < 6; ++j)
                 for (var i = 0; i < 8; ++i)
-                    DrawOnCrossWorldAllianceList(j, i, AgentReadyCheck.ReadyCheckStatus.Ready, pCrossWorldAllianceList,
+                    DrawOnCrossWorldAllianceList(j, i, ReadyCheckStatus.Ready, pCrossWorldAllianceList,
                         drawList);
             }
         }
@@ -96,7 +96,7 @@ public class PartyListOverlay : Window, IDisposable
             {
                 foreach (var result in data)
                 {
-                    var indices = MemoryHandler.GetHUDIndicesForChar(result.ContentID, result.ObjectID);
+                    var indices = MemoryHandler.GetHUDIndicesForChar(result.ContentId, result.EntityId);
                     if (indices == null) continue;
                     switch (indices.Value.GroupNumber)
                     {
@@ -127,7 +127,7 @@ public class PartyListOverlay : Window, IDisposable
         }
     }
 
-    private unsafe void DrawOnPartyList(int listIndex, AgentReadyCheck.ReadyCheckStatus readyCheckState, AtkUnitBase* pPartyList, ImDrawListPtr drawList)
+    private unsafe void DrawOnPartyList(int listIndex, ReadyCheckStatus readyCheckState, AtkUnitBase* pPartyList, ImDrawListPtr drawList)
     {
         if (listIndex is < 0 or > 7)
             return;
@@ -154,15 +154,15 @@ public class PartyListOverlay : Window, IDisposable
         var iconPos = new Vector2(pPartyList->X + pPartyMemberNode->AtkResNode.X * pPartyList->Scale + pIconNode->X * pPartyList->Scale + pIconNode->Width * pPartyList->Scale / 2, pPartyList->Y + partyAlign + pPartyMemberNode->AtkResNode.Y * pPartyList->Scale + pIconNode->Y * pPartyList->Scale + pIconNode->Height * pPartyList->Scale / 2);
         iconPos += iconOffset;
 
-        if (readyCheckState == AgentReadyCheck.ReadyCheckStatus.NotReady)
+        if (readyCheckState == ReadyCheckStatus.NotReady)
             drawList.AddImage(ReadyCheckIconTexture.ImGuiHandle, iconPos, iconPos + iconSize, new Vector2(0.5f, 0.0f), new Vector2(1.0f));
-        else if (readyCheckState == AgentReadyCheck.ReadyCheckStatus.Ready)
+        else if (readyCheckState == ReadyCheckStatus.Ready)
             drawList.AddImage(ReadyCheckIconTexture.ImGuiHandle, iconPos, iconPos + iconSize, new Vector2(0.0f, 0.0f), new Vector2(0.5f, 1.0f));
-        else if (readyCheckState == AgentReadyCheck.ReadyCheckStatus.MemberNotPresent)
+        else if (readyCheckState == ReadyCheckStatus.MemberNotPresent)
             drawList.AddImage(NotPresentIconTexture.ImGuiHandle, iconPos, iconPos + iconSize);
     }
 
-    private unsafe void DrawOnAllianceList(int listIndex, AgentReadyCheck.ReadyCheckStatus readyCheckState, AtkUnitBase* pAllianceList, ImDrawListPtr drawList)
+    private unsafe void DrawOnAllianceList(int listIndex, ReadyCheckStatus readyCheckState, AtkUnitBase* pAllianceList, ImDrawListPtr drawList)
     {
         if (listIndex is < 0 or > 7)
             return;
@@ -187,15 +187,15 @@ public class PartyListOverlay : Window, IDisposable
         var iconPos = new Vector2(pAllianceList->X + pAllianceMemberNode->AtkResNode.X * pAllianceList->Scale + pIconNode->X * pAllianceList->Scale + pIconNode->Width * pAllianceList->Scale / 2, pAllianceList->Y + pAllianceMemberNode->AtkResNode.Y * pAllianceList->Scale + pIconNode->Y * pAllianceList->Scale + pIconNode->Height * pAllianceList->Scale / 2);
         iconPos += iconOffset;
 
-        if (readyCheckState == AgentReadyCheck.ReadyCheckStatus.NotReady)
+        if (readyCheckState == ReadyCheckStatus.NotReady)
             drawList.AddImage(ReadyCheckIconTexture.ImGuiHandle, iconPos, iconPos + iconSize, new Vector2(0.5f, 0.0f), new Vector2(1.0f));
-        else if (readyCheckState == AgentReadyCheck.ReadyCheckStatus.Ready)
+        else if (readyCheckState == ReadyCheckStatus.Ready)
             drawList.AddImage(ReadyCheckIconTexture.ImGuiHandle, iconPos, iconPos + iconSize, new Vector2(0.0f), new Vector2(0.5f, 1.0f));
-        else if (readyCheckState == AgentReadyCheck.ReadyCheckStatus.MemberNotPresent)
+        else if (readyCheckState == ReadyCheckStatus.MemberNotPresent)
             drawList.AddImage(NotPresentIconTexture.ImGuiHandle, iconPos, iconPos + iconSize);
     }
 
-    private unsafe void DrawOnCrossWorldAllianceList(int allianceIndex, int partyMemberIndex, AgentReadyCheck.ReadyCheckStatus readyCheckState, AtkUnitBase* pAllianceList, ImDrawListPtr drawList)
+    private unsafe void DrawOnCrossWorldAllianceList(int allianceIndex, int partyMemberIndex, ReadyCheckStatus readyCheckState, AtkUnitBase* pAllianceList, ImDrawListPtr drawList)
     {
         if (allianceIndex is < 1 or > 5)
             return;
@@ -234,11 +234,11 @@ public class PartyListOverlay : Window, IDisposable
         var iconPos = new Vector2(pAllianceList->X + pAllianceNode->AtkResNode.X * pAllianceList->Scale + pPartyMemberNode->AtkResNode.X * pAllianceList->Scale + pIconNode->X * pAllianceList->Scale + pIconNode->Width * pAllianceList->Scale / 2, pAllianceList->Y + pAllianceNode->AtkResNode.Y * pAllianceList->Scale + pPartyMemberNode->AtkResNode.Y * pAllianceList->Scale + pIconNode->Y * pAllianceList->Scale + pIconNode->Height * pAllianceList->Scale / 2);
         iconPos += iconOffset;
 
-        if (readyCheckState == AgentReadyCheck.ReadyCheckStatus.NotReady)
+        if (readyCheckState == ReadyCheckStatus.NotReady)
             drawList.AddImage(ReadyCheckIconTexture.ImGuiHandle, iconPos, iconPos + iconSize, new Vector2(0.5f, 0.0f), new Vector2(1.0f));
-        else if (readyCheckState == AgentReadyCheck.ReadyCheckStatus.Ready)
+        else if (readyCheckState == ReadyCheckStatus.Ready)
             drawList.AddImage(ReadyCheckIconTexture.ImGuiHandle, iconPos, iconPos + iconSize, new Vector2(0.0f, 0.0f), new Vector2(0.5f, 1.0f));
-        else if (readyCheckState == AgentReadyCheck.ReadyCheckStatus.MemberNotPresent)
+        else if (readyCheckState == ReadyCheckStatus.MemberNotPresent)
             drawList.AddImage(NotPresentIconTexture.ImGuiHandle, iconPos, iconPos + iconSize);
     }
 

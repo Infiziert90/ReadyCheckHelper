@@ -1,5 +1,4 @@
 ﻿using Dalamud.Configuration;
-using Dalamud.Plugin;
 using System;
 using System.Numerics;
 
@@ -128,19 +127,10 @@ namespace ReadyCheckHelper
 			set { mChatChannelToUseForNotReadyMessage = (int)value; }
 		}
 
-		//  Plugin framework and related convenience functions below.
-		public void Initialize( DalamudPluginInterface pluginInterface )
-		{
-			PluginInterface = pluginInterface;
-		}
-
 		public void Save()
 		{
-			PluginInterface.SavePluginConfig( this );
+			Plugin.PluginInterface.SavePluginConfig( this );
 		}
-
-		[NonSerialized]
-		protected DalamudPluginInterface PluginInterface;
 
 		public int Version { get; set; } = 0;
 	}
