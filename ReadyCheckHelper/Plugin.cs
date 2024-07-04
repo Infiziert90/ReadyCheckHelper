@@ -325,7 +325,7 @@ namespace ReadyCheckHelper
                         var pGroupMember = groupManager->MainGroup.GetAllianceMemberByGroupAndIndex(j, i);
                         if ((nint)pGroupMember != nint.Zero)
                         {
-                            var name = SeString.Parse(pGroupMember->Name).ToString();
+                            var name = Utils.NameToSeString(pGroupMember->Name).ExtractText();
                             allianceMemberDict.TryAdd(pGroupMember->EntityId, Tuple.Create(pGroupMember->ContentId, name, (byte)(j + 1), (byte)i));
                         }
                     }
@@ -341,7 +341,7 @@ namespace ReadyCheckHelper
                         var pFoundPartyMember = groupManager->MainGroup.GetPartyMemberByIndex(i);
                         if ((nint)pFoundPartyMember != nint.Zero)
                         {
-                            var name = SeString.Parse(pFoundPartyMember->Name).ToString();
+                            var name = Utils.NameToSeString(pFoundPartyMember->Name).ExtractText();
 
                             //	If it's us, we need to use the first entry in the ready check data.
                             if (pFoundPartyMember->EntityId == ClientState.LocalPlayer?.EntityId)
@@ -392,7 +392,7 @@ namespace ReadyCheckHelper
                     var pFoundPartyMember = InfoProxyCrossRealm.GetMemberByContentId(readyCheckEntry.ContentId);
                     if ((nint)pFoundPartyMember != nint.Zero)
                     {
-                        var name = SeString.Parse(pFoundPartyMember->Name).ToString();
+                        var name = Utils.NameToSeString(pFoundPartyMember->Name).ExtractText();
                         readyCheckProcessedList.Add(new CorrelatedReadyCheckEntry(name, pFoundPartyMember->ContentId, pFoundPartyMember->EntityId, readyCheckEntry.Status, pFoundPartyMember->GroupIndex, pFoundPartyMember->MemberIndex));
                     }
                 }

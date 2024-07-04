@@ -121,7 +121,7 @@ public class DebugWindow : Window, IDisposable
             var pGroupMember = groupManager->MainGroup.GetPartyMemberByIndex(i);
             if ((nint)pGroupMember != nint.Zero)
             {
-                var name = SeString.Parse(pGroupMember->Name).ToString();
+                var name = Utils.NameToSeString(pGroupMember->Name).ExtractText();
                 string classJobAbbr = JobDict.TryGetValue(pGroupMember->ClassJob, out classJobAbbr) ? classJobAbbr : "ERR";
                 ImGui.Text($"Job: {classJobAbbr}, OID: {pGroupMember->EntityId:X8}, CID: {pGroupMember->ContentId:X16}, Name: {name}");
             }
@@ -136,7 +136,7 @@ public class DebugWindow : Window, IDisposable
             var pGroupMember = groupManager->MainGroup.GetAllianceMemberByIndex(i);
             if ((nint)pGroupMember != nint.Zero)
             {
-                var name = SeString.Parse(pGroupMember->Name).ToString();
+                var name = Utils.NameToSeString(pGroupMember->Name).ExtractText();
                 string classJobAbbr = JobDict.TryGetValue(pGroupMember->ClassJob, out classJobAbbr)
                     ? classJobAbbr
                     : "ERR";
@@ -157,7 +157,7 @@ public class DebugWindow : Window, IDisposable
                 var pGroupMember = InfoProxyCrossRealm.GetGroupMember((uint)j, i);
                 if ((nint)pGroupMember != nint.Zero)
                 {
-                    var name = SeString.Parse(pGroupMember->Name).ToString();
+                    var name = Utils.NameToSeString(pGroupMember->Name).ExtractText();
                     ImGui.Text($"Group: {pGroupMember->GroupIndex}, OID: {pGroupMember->EntityId:X8}, CID: {pGroupMember->ContentId:X16}, Name: {name}");
                 }
             }
