@@ -3,6 +3,7 @@ using System.Numerics;
 using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
+using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using ImGuiNET;
@@ -55,7 +56,7 @@ public class PartyListOverlay : Window, IDisposable
 
     public override unsafe void Draw()
     {
-        var pPartyList = (AtkUnitBase*)Plugin.GameGui.GetAddonByName("_PartyList");
+        var pPartyList = (AddonPartyList*)Plugin.GameGui.GetAddonByName("_PartyList");
         var pAlliance1List = (AtkUnitBase*)Plugin.GameGui.GetAddonByName("_AllianceList1");
         var pAlliance2List = (AtkUnitBase*)Plugin.GameGui.GetAddonByName("_AllianceList2");
         var pCrossWorldAllianceList = (AtkUnitBase*)Plugin.GameGui.GetAddonByName("Alliance48");
@@ -127,31 +128,17 @@ public class PartyListOverlay : Window, IDisposable
         }
     }
 
-    private unsafe void DrawOnPartyList(int listIndex, ReadyCheckStatus readyCheckState, AtkUnitBase* pPartyList, ImDrawListPtr drawList)
+    private unsafe void DrawOnPartyList(int index, ReadyCheckStatus readyCheckState, AddonPartyList* pPartyList, ImDrawListPtr drawList)
     {
-        if (listIndex is < 0 or > 7)
+        if (index is < 0 or > 7)
             return;
 
-        var iconNodeIndex = 4;
-        var partyMemberNodeIndex = 22 - listIndex;
-        var partyAlign = pPartyList->UldManager.NodeList[3]->Y;
+        var partyMember = pPartyList->PartyMembers[index];
+        var pPartyMemberNode = partyMember.PartyMemberComponent->OwnerNode;
+        var pIconNode = partyMember.PartyMemberComponent->GetImageNodeById(19)->GetAsAtkImageNode();
 
-        var listManager = pPartyList->UldManager;
-        var pPartyMemberNode = listManager.NodeListSize > partyMemberNodeIndex
-            ? (AtkComponentNode*)listManager.NodeList[partyMemberNodeIndex]
-            : (AtkComponentNode*)nint.Zero;
-        if ((nint)pPartyMemberNode == nint.Zero)
-            return;
-
-        var memberComponent = pPartyMemberNode->Component;
-        if (memberComponent == null)
-            return;
-
-        var pIconNode = memberComponent->UldManager.NodeListSize > iconNodeIndex
-            ? memberComponent->UldManager.NodeList[iconNodeIndex]
-            : (AtkResNode*)nint.Zero;
-        if ((nint)pIconNode == nint.Zero)
-            return;
+        // TODO Replace with <https://github.com/aers/FFXIVClientStructs/pull/1041/files>
+        var partyAlign = pPartyList->GetNodeById(2)->Y;
 
         //	Note: sub-nodes don't scale, so we have to account for the addon's scale.
         var iconOffset = (new Vector2(-7, -5) + Plugin.Configuration.PartyListIconOffset) * pPartyList->Scale;
