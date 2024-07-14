@@ -2,7 +2,7 @@
 	<PropertyGroup>
 		<TargetFramework>net8.0-windows</TargetFramework>
 		<Platforms>AnyCPU</Platforms>
-		<Version>1.0.7.1</Version>
+		<Version>1.0.7.2</Version>
 		<Authors>Infi, PunishedPineapple</Authors>
 		<Copyright>Copyright © Infi, PunishedPineapple 2021-2024</Copyright>
 		<PackageProjectUrl>https://github.com/Infiziert90/ReadyCheckHelper</PackageProjectUrl>

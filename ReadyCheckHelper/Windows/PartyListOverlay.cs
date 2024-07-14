@@ -14,7 +14,7 @@ public class PartyListOverlay : Window, IDisposable
 {
     private readonly Plugin Plugin;
 
-    public bool ReadyCheckValid;
+    private bool ReadyCheckValid;
     private readonly IDalamudTextureWrap ReadyCheckIconTexture;
     private readonly IDalamudTextureWrap NotPresentIconTexture;
 
@@ -132,18 +132,23 @@ public class PartyListOverlay : Window, IDisposable
         if (listIndex is < 0 or > 7)
             return;
 
-        var partyMemberNodeIndex = 22 - listIndex;
         var iconNodeIndex = 4;
+        var partyMemberNodeIndex = 22 - listIndex;
         var partyAlign = pPartyList->UldManager.NodeList[3]->Y;
 
-        var pPartyMemberNode = pPartyList->UldManager.NodeListSize > partyMemberNodeIndex
-            ? (AtkComponentNode*)pPartyList->UldManager.NodeList[partyMemberNodeIndex]
+        var listManager = pPartyList->UldManager;
+        var pPartyMemberNode = listManager.NodeListSize > partyMemberNodeIndex
+            ? (AtkComponentNode*)listManager.NodeList[partyMemberNodeIndex]
             : (AtkComponentNode*)nint.Zero;
         if ((nint)pPartyMemberNode == nint.Zero)
             return;
 
-        var pIconNode = pPartyMemberNode->Component->UldManager.NodeListSize > iconNodeIndex
-            ? pPartyMemberNode->Component->UldManager.NodeList[iconNodeIndex]
+        var memberComponent = pPartyMemberNode->Component;
+        if (memberComponent == null)
+            return;
+
+        var pIconNode = memberComponent->UldManager.NodeListSize > iconNodeIndex
+            ? memberComponent->UldManager.NodeList[iconNodeIndex]
             : (AtkResNode*)nint.Zero;
         if ((nint)pIconNode == nint.Zero)
             return;
@@ -167,8 +172,8 @@ public class PartyListOverlay : Window, IDisposable
         if (listIndex is < 0 or > 7)
             return;
 
-        var partyMemberNodeIndex = 9 - listIndex;
         var iconNodeIndex = 5;
+        var partyMemberNodeIndex = 9 - listIndex;
 
         var pAllianceMemberNode = pAllianceList->UldManager.NodeListSize > partyMemberNodeIndex
             ? (AtkComponentNode*)pAllianceList->UldManager.NodeList[partyMemberNodeIndex]
@@ -176,8 +181,12 @@ public class PartyListOverlay : Window, IDisposable
         if ((nint)pAllianceMemberNode == nint.Zero)
             return;
 
-        var pIconNode = pAllianceMemberNode->Component->UldManager.NodeListSize > iconNodeIndex
-            ? pAllianceMemberNode->Component->UldManager.NodeList[iconNodeIndex]
+        var allianceComponent = pAllianceMemberNode->Component;
+        if (allianceComponent == null)
+            return;
+
+        var pIconNode = allianceComponent->UldManager.NodeListSize > iconNodeIndex
+            ? allianceComponent->UldManager.NodeList[iconNodeIndex]
             : (AtkResNode*)nint.Zero;
         if ((nint)pIconNode == nint.Zero)
             return;
@@ -203,9 +212,9 @@ public class PartyListOverlay : Window, IDisposable
         if (partyMemberIndex is < 0 or > 7)
             return;
 
+        var iconNodeIndex = 2;
         var allianceNodeIndex = 8 - allianceIndex;
         var partyMemberNodeIndex = 8 - partyMemberIndex;
-        var iconNodeIndex = 2;
 
         // Check if it is loaded, else this could lead to a crash
         if (pAllianceList->UldManager.LoadedState != AtkLoadState.Loaded)
@@ -217,14 +226,22 @@ public class PartyListOverlay : Window, IDisposable
         if ((nint)pAllianceNode == nint.Zero)
             return;
 
-        var pPartyMemberNode = pAllianceNode->Component->UldManager.NodeListSize > partyMemberNodeIndex
-            ? (AtkComponentNode*)pAllianceNode->Component->UldManager.NodeList[partyMemberNodeIndex]
+        var allianceComponent = pAllianceNode->Component;
+        if (allianceComponent == null)
+            return;
+
+        var pPartyMemberNode = allianceComponent->UldManager.NodeListSize > partyMemberNodeIndex
+            ? (AtkComponentNode*)allianceComponent->UldManager.NodeList[partyMemberNodeIndex]
             : (AtkComponentNode*)nint.Zero;
         if ((nint)pPartyMemberNode == nint.Zero)
             return;
 
-        var pIconNode = pPartyMemberNode->Component->UldManager.NodeListSize > iconNodeIndex
-            ? pPartyMemberNode->Component->UldManager.NodeList[iconNodeIndex]
+        var partyComponent = pPartyMemberNode->Component;
+        if (partyComponent == null)
+            return;
+
+        var pIconNode = partyComponent->UldManager.NodeListSize > iconNodeIndex
+            ? partyComponent->UldManager.NodeList[iconNodeIndex]
             : (AtkResNode*)nint.Zero;
         if ((nint)pIconNode == nint.Zero)
             return;
