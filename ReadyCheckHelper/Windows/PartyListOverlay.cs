@@ -5,7 +5,6 @@ using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
 using FFXIVClientStructs.FFXIV.Client.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
-using FFXIVClientStructs.FFXIV.Component.GUI;
 using ImGuiNET;
 using Lumina.Data.Files;
 
@@ -57,9 +56,9 @@ public class PartyListOverlay : Window, IDisposable
     public override unsafe void Draw()
     {
         var pPartyList = (AddonPartyList*)Plugin.GameGui.GetAddonByName("_PartyList");
-        var pAlliance1List = (AtkUnitBase*)Plugin.GameGui.GetAddonByName("_AllianceList1");
-        var pAlliance2List = (AtkUnitBase*)Plugin.GameGui.GetAddonByName("_AllianceList2");
-        var pCrossWorldAllianceList = (AtkUnitBase*)Plugin.GameGui.GetAddonByName("Alliance48");
+        var pAlliance1List = (AddonAllianceListX*)Plugin.GameGui.GetAddonByName("_AllianceList1");
+        var pAlliance2List = (AddonAllianceListX*)Plugin.GameGui.GetAddonByName("_AllianceList2");
+        var pCrossWorldAllianceList = (AddonAlliance48*)Plugin.GameGui.GetAddonByName("Alliance48");
 
         var drawList = ImGui.GetWindowDrawList();
         if (Plugin.DebugWindow.DrawPlaceholderData)
@@ -93,36 +92,34 @@ public class PartyListOverlay : Window, IDisposable
         else
         {
             var data = Plugin.GetProcessedReadyCheckData();
-            if (data != null)
+            if (data == null)
+                return;
+
+            foreach (var result in data)
             {
-                foreach (var result in data)
+                var indices = MemoryHandler.GetHUDIndicesForChar(result.ContentId, result.EntityId);
+                if (indices == null) continue;
+                switch (indices.Value.GroupNumber)
                 {
-                    var indices = MemoryHandler.GetHUDIndicesForChar(result.ContentId, result.EntityId);
-                    if (indices == null) continue;
-                    switch (indices.Value.GroupNumber)
-                    {
-                        case 0:
-                            DrawOnPartyList(indices.Value.PartyMemberIndex, result.ReadyState, pPartyList, drawList);
-                            break;
-                        case 1:
-                            if (indices.Value.CrossWorld)
-                                break; //***** TODO: Do something when crossworld alliances are fixed.
-                            else
-                                DrawOnAllianceList(indices.Value.PartyMemberIndex, result.ReadyState, pAlliance1List,
-                                    drawList);
-                            break;
-                        case 2:
-                            if (indices.Value.CrossWorld)
-                                break; //***** TODO: Do something when crossworld alliances are fixed.
-                            else
-                                DrawOnAllianceList(indices.Value.PartyMemberIndex, result.ReadyState, pAlliance2List,
-                                    drawList);
-                            break;
-                        default:
-                            if (indices.Value.CrossWorld)
-                                break; //***** TODO: Do something when crossworld alliances are fixed.
-                            break;
-                    }
+                    case 0:
+                        DrawOnPartyList(indices.Value.PartyMemberIndex, result.ReadyState, pPartyList, drawList);
+                        break;
+                    case 1:
+                        if (indices.Value.CrossWorld)
+                            DrawOnCrossWorldAllianceList(indices.Value.GroupNumber, indices.Value.PartyMemberIndex, result.ReadyState, pCrossWorldAllianceList, drawList);
+                        else
+                            DrawOnAllianceList(indices.Value.PartyMemberIndex, result.ReadyState, pAlliance1List, drawList);
+                        break;
+                    case 2:
+                        if (indices.Value.CrossWorld)
+                            DrawOnCrossWorldAllianceList(indices.Value.GroupNumber, indices.Value.PartyMemberIndex, result.ReadyState, pCrossWorldAllianceList, drawList);
+                        else
+                            DrawOnAllianceList(indices.Value.PartyMemberIndex, result.ReadyState, pAlliance2List, drawList);
+                        break;
+                    default:
+                        if (indices.Value.CrossWorld)
+                            DrawOnCrossWorldAllianceList(indices.Value.GroupNumber, indices.Value.PartyMemberIndex, result.ReadyState, pCrossWorldAllianceList, drawList);
+                        break;
                 }
             }
         }
@@ -136,9 +133,7 @@ public class PartyListOverlay : Window, IDisposable
         var partyMember = pPartyList->PartyMembers[index];
         var pPartyMemberNode = partyMember.PartyMemberComponent->OwnerNode;
         var pIconNode = partyMember.PartyMemberComponent->GetImageNodeById(19)->GetAsAtkImageNode();
-
-        // TODO Replace with <https://github.com/aers/FFXIVClientStructs/pull/1041/files>
-        var partyAlign = pPartyList->GetNodeById(2)->Y;
+        var partyAlign = pPartyList->PartyListAtkResNode->Y;
 
         //	Note: sub-nodes don't scale, so we have to account for the addon's scale.
         var iconOffset = (new Vector2(-7, -5) + Plugin.Configuration.PartyListIconOffset) * pPartyList->Scale;
@@ -154,33 +149,18 @@ public class PartyListOverlay : Window, IDisposable
             drawList.AddImage(NotPresentIconTexture.ImGuiHandle, iconPos, iconPos + iconSize);
     }
 
-    private unsafe void DrawOnAllianceList(int listIndex, ReadyCheckStatus readyCheckState, AtkUnitBase* pAllianceList, ImDrawListPtr drawList)
+    private unsafe void DrawOnAllianceList(int index, ReadyCheckStatus readyCheckState, AddonAllianceListX* pAllianceList, ImDrawListPtr drawList)
     {
-        if (listIndex is < 0 or > 7)
+        if (index is < 0 or > 7)
             return;
 
-        var iconNodeIndex = 5;
-        var partyMemberNodeIndex = 9 - listIndex;
-
-        var pAllianceMemberNode = pAllianceList->UldManager.NodeListSize > partyMemberNodeIndex
-            ? (AtkComponentNode*)pAllianceList->UldManager.NodeList[partyMemberNodeIndex]
-            : (AtkComponentNode*)nint.Zero;
-        if ((nint)pAllianceMemberNode == nint.Zero)
-            return;
-
-        var allianceComponent = pAllianceMemberNode->Component;
-        if (allianceComponent == null)
-            return;
-
-        var pIconNode = allianceComponent->UldManager.NodeListSize > iconNodeIndex
-            ? allianceComponent->UldManager.NodeList[iconNodeIndex]
-            : (AtkResNode*)nint.Zero;
-        if ((nint)pIconNode == nint.Zero)
-            return;
+        var allianceMember = pAllianceList->AllianceMembers[index];
+        var allianceMemberNode = allianceMember.ComponentBase->OwnerNode;
+        var pIconNode = allianceMember.ComponentBase->GetImageNodeById(9)->GetAsAtkImageNode();
 
         var iconOffset = (new Vector2(0, 0) + Plugin.Configuration.AllianceListIconOffset) * pAllianceList->Scale;
         var iconSize = new Vector2(pIconNode->Width / 3.0f, pIconNode->Height / 3.0f) * Plugin.Configuration.AllianceListIconScale * pAllianceList->Scale;
-        var iconPos = new Vector2(pAllianceList->X + pAllianceMemberNode->AtkResNode.X * pAllianceList->Scale + pIconNode->X * pAllianceList->Scale + pIconNode->Width * pAllianceList->Scale / 2, pAllianceList->Y + pAllianceMemberNode->AtkResNode.Y * pAllianceList->Scale + pIconNode->Y * pAllianceList->Scale + pIconNode->Height * pAllianceList->Scale / 2);
+        var iconPos = new Vector2(pAllianceList->X + allianceMemberNode->AtkResNode.X * pAllianceList->Scale + pIconNode->X * pAllianceList->Scale + pIconNode->Width * pAllianceList->Scale / 2, pAllianceList->Y + allianceMemberNode->AtkResNode.Y * pAllianceList->Scale + pIconNode->Y * pAllianceList->Scale + pIconNode->Height * pAllianceList->Scale / 2);
         iconPos += iconOffset;
 
         if (readyCheckState == ReadyCheckStatus.NotReady)
@@ -191,7 +171,7 @@ public class PartyListOverlay : Window, IDisposable
             drawList.AddImage(NotPresentIconTexture.ImGuiHandle, iconPos, iconPos + iconSize);
     }
 
-    private unsafe void DrawOnCrossWorldAllianceList(int allianceIndex, int partyMemberIndex, ReadyCheckStatus readyCheckState, AtkUnitBase* pAllianceList, ImDrawListPtr drawList)
+    private unsafe void DrawOnCrossWorldAllianceList(int allianceIndex, int partyMemberIndex, ReadyCheckStatus readyCheckState, AddonAlliance48* pAllianceList, ImDrawListPtr drawList)
     {
         if (allianceIndex is < 1 or > 5)
             return;
@@ -199,43 +179,16 @@ public class PartyListOverlay : Window, IDisposable
         if (partyMemberIndex is < 0 or > 7)
             return;
 
-        var iconNodeIndex = 2;
-        var allianceNodeIndex = 8 - allianceIndex;
-        var partyMemberNodeIndex = 8 - partyMemberIndex;
 
-        // Check if it is loaded, else this could lead to a crash
-        if (pAllianceList->UldManager.LoadedState != AtkLoadState.Loaded)
-            return;
-
-        var pAllianceNode = pAllianceList->UldManager.NodeListSize > allianceNodeIndex
-            ? (AtkComponentNode*)pAllianceList->UldManager.NodeList[allianceNodeIndex]
-            : (AtkComponentNode*)nint.Zero;
-        if ((nint)pAllianceNode == nint.Zero)
-            return;
-
-        var allianceComponent = pAllianceNode->Component;
-        if (allianceComponent == null)
-            return;
-
-        var pPartyMemberNode = allianceComponent->UldManager.NodeListSize > partyMemberNodeIndex
-            ? (AtkComponentNode*)allianceComponent->UldManager.NodeList[partyMemberNodeIndex]
-            : (AtkComponentNode*)nint.Zero;
-        if ((nint)pPartyMemberNode == nint.Zero)
-            return;
-
-        var partyComponent = pPartyMemberNode->Component;
-        if (partyComponent == null)
-            return;
-
-        var pIconNode = partyComponent->UldManager.NodeListSize > iconNodeIndex
-            ? partyComponent->UldManager.NodeList[iconNodeIndex]
-            : (AtkResNode*)nint.Zero;
-        if ((nint)pIconNode == nint.Zero)
-            return;
+        var alliance = pAllianceList->Alliances[allianceIndex];
+        var allianceNode = alliance.ComponentBase->OwnerNode;
+        var allianceMember = alliance.Members[partyMemberIndex];
+        var allianceMemberNode = allianceMember.AtkComponentBase->OwnerNode;
+        var pIconNode = allianceMember.AtkComponentBase->GetImageNodeById(2)->GetAsAtkImageNode();
 
         var iconOffset = (new Vector2(0, 0) + Plugin.Configuration.CrossWorldAllianceListIconOffset) * pAllianceList->Scale;
         var iconSize = new Vector2(pIconNode->Width / 2.0f, pIconNode->Height / 2.0f) * Plugin.Configuration.CrossWorldAllianceListIconScale * pAllianceList->Scale;
-        var iconPos = new Vector2(pAllianceList->X + pAllianceNode->AtkResNode.X * pAllianceList->Scale + pPartyMemberNode->AtkResNode.X * pAllianceList->Scale + pIconNode->X * pAllianceList->Scale + pIconNode->Width * pAllianceList->Scale / 2, pAllianceList->Y + pAllianceNode->AtkResNode.Y * pAllianceList->Scale + pPartyMemberNode->AtkResNode.Y * pAllianceList->Scale + pIconNode->Y * pAllianceList->Scale + pIconNode->Height * pAllianceList->Scale / 2);
+        var iconPos = new Vector2(pAllianceList->X + allianceNode->AtkResNode.X * pAllianceList->Scale + allianceMemberNode->AtkResNode.X * pAllianceList->Scale + pIconNode->X * pAllianceList->Scale + pIconNode->Width * pAllianceList->Scale / 2, pAllianceList->Y + allianceNode->AtkResNode.Y * pAllianceList->Scale + allianceMemberNode->AtkResNode.Y * pAllianceList->Scale + pIconNode->Y * pAllianceList->Scale + pIconNode->Height * pAllianceList->Scale / 2);
         iconPos += iconOffset;
 
         if (readyCheckState == ReadyCheckStatus.NotReady)
