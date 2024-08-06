@@ -98,7 +98,9 @@ public class PartyListOverlay : Window, IDisposable
             foreach (var result in data)
             {
                 var indices = MemoryHandler.GetHUDIndicesForChar(result.ContentId, result.EntityId);
-                if (indices == null) continue;
+                if (indices == null)
+                    continue;
+
                 switch (indices.Value.GroupNumber)
                 {
                     case 0:

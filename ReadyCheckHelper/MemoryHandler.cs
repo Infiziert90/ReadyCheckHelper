@@ -59,7 +59,7 @@ namespace ReadyCheckHelper
             var infoProxyCrossRealm = InfoProxyCrossRealm.Instance();
             var groupManager = GroupManager.Instance();
             var agentHud = AgentHUD.Instance();
-            if (infoProxyCrossRealm == null || groupManager == null)
+            if (infoProxyCrossRealm == null || groupManager == null || agentHud == null)
                 return null;
 
             //	We're only in a crossworld party if the cross realm proxy says we are; however, it can say we're cross-realm when
@@ -68,8 +68,8 @@ namespace ReadyCheckHelper
             {
                 for (var i = 0; i < 8; ++i)
                 {
-                    var charData = groupManager->MainGroup.PartyMembers[i];
-                    if (ContentId > 0 && ContentId == (ulong) charData.ContentId)
+                    var charData = agentHud->PartyMembers[i];
+                    if (ContentId > 0 && ContentId == charData.ContentId)
                         return new PartyListLayoutResult(false, 0, i);
 
                     if (EntityId > 0 && EntityId != 0xE0000000 && EntityId == charData.EntityId)
