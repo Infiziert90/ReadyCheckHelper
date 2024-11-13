@@ -2,9 +2,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using Dalamud.Game.Text;
-
 using Lumina.Excel;
-using Lumina.Excel.GeneratedSheets;
+using Lumina.Excel.Sheets;
 
 namespace ReadyCheckHelper
 {
@@ -213,10 +212,10 @@ namespace ReadyCheckHelper
 			mLogFilterSheet = null;
 		}
 
-		internal static string GetTranslatedChatChannelName( XivChatType channel )
+		internal static string GetTranslatedChatChannelName(XivChatType channel)
 		{
-			var exdRow = mLogFilterSheet?.FirstOrDefault( x => { return x.LogKind == ((byte)channel & 0x7F ); } );
-			return exdRow != null ? exdRow.Name.ToString() : Enum.GetName( typeof( XivChatType ), channel );
+			var exdRow = mLogFilterSheet.FirstOrNull(x => x.LogKind == ((byte)channel & 0x7F));
+			return exdRow != null ? exdRow.Value.Name.ExtractText() : Enum.GetName( typeof( XivChatType ), channel );
 		}
 
 		private static ExcelSheet<LogFilter> mLogFilterSheet;

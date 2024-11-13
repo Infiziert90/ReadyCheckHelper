@@ -18,7 +18,7 @@ using FFXIVClientStructs.FFXIV.Client.Game.Group;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Client.UI.Info;
 using FFXIVClientStructs.FFXIV.Component.GUI;
-using Lumina.Excel.GeneratedSheets;
+using Lumina.Excel.Sheets;
 using ReadyCheckHelper.Windows;
 
 namespace ReadyCheckHelper
@@ -485,7 +485,7 @@ namespace ReadyCheckHelper
                 PartyListOverlay.InvalidateReadyCheck();
         }
 
-        private void OnLogout()
+        private void OnLogout(int _, int __)
         {
             ReadyCheckActive = false;
             TimedOverlayCancellationSource?.Cancel();
@@ -502,7 +502,7 @@ namespace ReadyCheckHelper
         {
             var contentFinderSheet = DataManager.GetExcelSheet<ContentFinderCondition>()!;
             foreach (var zone in contentFinderSheet)
-                InstancedTerritories.Add(zone.TerritoryType.Row);
+                InstancedTerritories.Add(zone.TerritoryType.RowId);
         }
     }
 }

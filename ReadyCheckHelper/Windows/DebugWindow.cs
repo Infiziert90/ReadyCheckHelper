@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using CheapLoc;
-using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Interface;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
@@ -13,7 +12,7 @@ using FFXIVClientStructs.FFXIV.Client.Game.Group;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Client.UI.Info;
 using ImGuiNET;
-using Lumina.Excel.GeneratedSheets;
+using Lumina.Excel.Sheets;
 
 namespace ReadyCheckHelper.Windows;
 
@@ -33,7 +32,7 @@ public class DebugWindow : Window, IDisposable
 
         var classJobSheet = Plugin.DataManager.GetExcelSheet<ClassJob>()!;
         foreach(var job in classJobSheet.ToList())
-            JobDict.Add(job.RowId, job.Abbreviation);
+            JobDict.Add(job.RowId, job.Abbreviation.ExtractText());
 
         SizeConstraints = new WindowSizeConstraints()
         {
