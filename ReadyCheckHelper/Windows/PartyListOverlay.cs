@@ -85,8 +85,7 @@ public class PartyListOverlay : Window, IDisposable
             {
                 for (var j = 1; j < 6; ++j)
                 for (var i = 0; i < 8; ++i)
-                    DrawOnCrossWorldAllianceList(j, i, ReadyCheckStatus.Ready, pCrossWorldAllianceList,
-                        drawList);
+                    DrawOnCrossWorldAllianceList(j, i, ReadyCheckStatus.Ready, pCrossWorldAllianceList, drawList);
             }
         }
         else
@@ -132,14 +131,17 @@ public class PartyListOverlay : Window, IDisposable
         if (index is < 0 or > 7)
             return;
 
+        if ((nint)pPartyList == nint.Zero || !pPartyList->IsVisible)
+            return;
+
         var partyMember = pPartyList->PartyMembers[index];
         var pPartyMemberNode = partyMember.PartyMemberComponent->OwnerNode;
-        var pIconNode = partyMember.PartyMemberComponent->GetImageNodeById(19)->GetAsAtkImageNode();
+        var pIconNode = partyMember.ClassJobIcon;
         var partyAlign = pPartyList->PartyListAtkResNode->Y;
 
         //	Note: sub-nodes don't scale, so we have to account for the addon's scale.
         var iconOffset = (new Vector2(-7, -5) + Plugin.Configuration.PartyListIconOffset) * pPartyList->Scale;
-        var iconSize = new Vector2(pIconNode->Width / 3.0f, pIconNode->Height / 3.0f) * Plugin.Configuration.PartyListIconScale * pPartyList->Scale;
+        var iconSize = new Vector2(pIconNode->Width / 1.5f, pIconNode->Height / 1.5f) * Plugin.Configuration.PartyListIconScale * pPartyList->Scale;
         var iconPos = new Vector2(pPartyList->X + pPartyMemberNode->AtkResNode.X * pPartyList->Scale + pIconNode->X * pPartyList->Scale + pIconNode->Width * pPartyList->Scale / 2, pPartyList->Y + partyAlign + pPartyMemberNode->AtkResNode.Y * pPartyList->Scale + pIconNode->Y * pPartyList->Scale + pIconNode->Height * pPartyList->Scale / 2);
         iconPos += iconOffset;
 
@@ -154,6 +156,9 @@ public class PartyListOverlay : Window, IDisposable
     private unsafe void DrawOnAllianceList(int index, ReadyCheckStatus readyCheckState, AddonAllianceListX* pAllianceList, ImDrawListPtr drawList)
     {
         if (index is < 0 or > 7)
+            return;
+
+        if ((nint)pAllianceList == nint.Zero || !pAllianceList->IsVisible)
             return;
 
         var allianceMember = pAllianceList->AllianceMembers[index];
@@ -181,8 +186,10 @@ public class PartyListOverlay : Window, IDisposable
         if (partyMemberIndex is < 0 or > 7)
             return;
 
+        if ((nint)pAllianceList == nint.Zero || !pAllianceList->IsVisible)
+            return;
 
-        var alliance = pAllianceList->Alliances[allianceIndex];
+        var alliance = pAllianceList->Alliances[allianceIndex-1]; // Group 1 is not in the span, so we need to subtract 1 group from this
         var allianceNode = alliance.ComponentBase->OwnerNode;
         var allianceMember = alliance.Members[partyMemberIndex];
         var allianceMemberNode = allianceMember.AtkComponentBase->OwnerNode;
