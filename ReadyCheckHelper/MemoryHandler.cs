@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Dalamud.Hooking;
 using FFXIVClientStructs.FFXIV.Client.Game.Group;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
@@ -70,8 +70,9 @@ public unsafe class MemoryHandler
             return null;
 
         //	We're only in a crossworld party if the cross realm proxy says we are; however, it can say we're cross-realm when
-        //	we're in a regular party if we entered an instance as a cross-world party, so account for that too.
-        if (groupManager->MainGroup.MemberCount > 0)
+        //	we're in a regular party if we entered an instance as a cross-world party, so account for that too.  The GroupManager
+        //  check for an alliance covers situations where you are the only player left in your alliance, but still in the raid.
+        if (groupManager->MainGroup.MemberCount > 0 || groupManager->MainGroup.IsAlliance)
         {
             for (var i = 0; i < 8; ++i)
             {
@@ -94,7 +95,15 @@ public unsafe class MemoryHandler
             var pGroupMember = InfoProxyCrossRealm.GetMemberByContentId(contentId);
             if (pGroupMember == null || contentId == 0)
                 return null;
-            return new PartyListLayoutResult(infoProxyCrossRealm->IsCrossRealm && !infoProxyCrossRealm->IsInAllianceRaid, pGroupMember->GroupIndex, pGroupMember->MemberIndex);
+
+            //  In order to match how this plugin indexes in the UI, for cross-world alliances, we need
+            //  to make the player's group be 0, and shift any groups before the player's group by one.
+            var groupIndex = pGroupMember->GroupIndex;
+            if( groupIndex == infoProxyCrossRealm->LocalPlayerGroupIndex ) groupIndex = 0;
+            else if( groupIndex < infoProxyCrossRealm->LocalPlayerGroupIndex )
+                     groupIndex += 1;
+
+            return new PartyListLayoutResult( true, groupIndex, pGroupMember->MemberIndex);
         }
 
         return null;
@@ -106,11 +115,11 @@ public struct PartyListLayoutResult
     public PartyListLayoutResult(bool crossWorld, int groupNumber, int partyMemberIndex)
     {
         CrossWorld = crossWorld;
-        GroupNumber = groupNumber;
+        GroupIndex = groupNumber;
         PartyMemberIndex = partyMemberIndex;
     }
 
     public readonly bool CrossWorld;
-    public readonly int GroupNumber;
+    public readonly int GroupIndex;
     public readonly int PartyMemberIndex;
 }

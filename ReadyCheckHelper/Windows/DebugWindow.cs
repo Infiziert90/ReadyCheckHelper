@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -23,7 +23,6 @@ public class DebugWindow : Window, IDisposable
     private readonly Dictionary<uint, string> JobDict = new();
 
     public bool DrawPlaceholderData;
-    private bool AllowCrossWorldAllianceDrawing;
     private int NumNamesToTestChatMessage = 5;
 
     public DebugWindow(Plugin plugin) : base($"{Language.WindowTitleReadyCheckandAllianceDebugData}###Ready Check and Alliance Debug Data")
@@ -77,6 +76,8 @@ public class DebugWindow : Window, IDisposable
 
         var crossWorldGroupCount = infoproxy->GroupCount;
         ImGui.Text($"Number of Cross-World Groups: {crossWorldGroupCount}");
+        ImGui.Text( $"Current Cross-World Group Index: {infoproxy->LocalPlayerGroupIndex}" );
+        ImGui.Text( $"InfoProxy Alliance: {infoproxy->IsInAllianceRaid}" );
         for (var i = 0; i < crossWorldGroupCount; ++i)
             ImGui.Text($"Number of Party Members (Group {i}): {InfoProxyCrossRealm.GetGroupMemberCount(i)}");
 
@@ -89,7 +90,6 @@ public class DebugWindow : Window, IDisposable
             Plugin.ProcessedWindow.IsOpen = isOpen;
 
         ImGui.Checkbox("Debug Drawing on Party List", ref DrawPlaceholderData);
-        ImGui.Checkbox("Allow Cross-world Alliance List Drawing", ref AllowCrossWorldAllianceDrawing);
 
         if (ImGui.Button("Test Chat Message"))
             Plugin.ListUnreadyPlayersInChat([..LocalizationHelpers.TestNames.Take(NumNamesToTestChatMessage)]);
@@ -99,12 +99,16 @@ public class DebugWindow : Window, IDisposable
         ImGui.NextColumn();
         ImGui.Text("Ready Check Data:");
         var readyCheckdata = AgentReadyCheck.Instance()->ReadyCheckEntries;
-        for (var i = 0; i < readyCheckdata.Length; ++i)
-            ImGui.Text($"ID: {readyCheckdata[i].ContentId:X16}, State: {readyCheckdata[i].Status}");
+        for( var i = 0; i < readyCheckdata.Length; ++i )
+        {
+            var hudIndices = Plugin.MemoryHandler.GetHUDIndicesForChar( readyCheckdata[i].ContentId, (uint)readyCheckdata[i].ContentId );
+            ImGui.Text( $"ID: {readyCheckdata[i].ContentId:X16}, State: {readyCheckdata[i].Status}, HUD Indices: [{hudIndices?.GroupIndex}][{hudIndices?.PartyMemberIndex}]" );
+        }
 
         ImGui.NextColumn();
 
         ImGui.Text("Party Data:");
+        ImGui.Text( $"GroupManager MainGroup Count: {groupManager->MainGroup.MemberCount}" );
         for (var i = 0; i < 8; ++i)
         {
             var pGroupMember = groupManager->MainGroup.GetPartyMemberByIndex(i);
@@ -145,7 +149,7 @@ public class DebugWindow : Window, IDisposable
                 if ((nint)pGroupMember != nint.Zero)
                 {
                     var name = pGroupMember->NameString;
-                    ImGui.Text($"Group: {pGroupMember->GroupIndex}, OID: {pGroupMember->EntityId:X8}, CID: {pGroupMember->ContentId:X16}, Name: {name}");
+                    ImGui.Text($"Group: [{pGroupMember->GroupIndex}][{pGroupMember->MemberIndex}], OID: {pGroupMember->EntityId:X8}, CID: {pGroupMember->ContentId:X16}, Name: {name}");
                 }
             }
         }
